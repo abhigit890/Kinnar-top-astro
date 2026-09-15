@@ -1942,7 +1942,11 @@ async function fetchTarot3Reading(){
     });
     const data = await res.json();
     if(!data || !data.love){
-      el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>';
+      el.innerHTML = `
+        <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>
+        <p style="text-align:center; font-size:10.5px; color:var(--ink-faint); margin-top:4px;">${data && data.error ? data.error : ""}</p>
+        <button class="banner-btn tarot-reset-btn" onclick="resetTarot3()">Try Again</button>
+      `;
       return;
     }
     const sections = [
@@ -1961,7 +1965,10 @@ async function fetchTarot3Reading(){
     `;
     el.scrollIntoView({ behavior:"smooth", block:"start" });
   } catch(e){
-    el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>';
+    el.innerHTML = `
+      <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>
+      <button class="banner-btn tarot-reset-btn" onclick="resetTarot3()">Try Again</button>
+    `;
   }
 }
 
@@ -1981,7 +1988,11 @@ async function fetchTarotYNReading(){
     });
     const data = await res.json();
     if(!data || !data.name){
-      el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>';
+      el.innerHTML = `
+        <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>
+        <p style="text-align:center; font-size:10.5px; color:var(--ink-faint); margin-top:4px;">${data && data.error ? data.error : ""}</p>
+        <button class="banner-btn tarot-reset-btn" onclick="resetTarotYN()">Try Again</button>
+      `;
       return;
     }
     const isYes = (data.value || "").toLowerCase() === "yes";
@@ -1998,7 +2009,10 @@ async function fetchTarotYNReading(){
     `;
     el.scrollIntoView({ behavior:"smooth", block:"start" });
   } catch(e){
-    el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>';
+    el.innerHTML = `
+      <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>
+      <button class="banner-btn tarot-reset-btn" onclick="resetTarotYN()">Try Again</button>
+    `;
   }
 }
 
