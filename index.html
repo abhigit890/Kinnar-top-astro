@@ -1567,7 +1567,7 @@ body{
     document.getElementById("user-chat-body").style.display = 'none';
     document.getElementById("user-chat-input-bar").style.display = 'none';
     document.getElementById("user-chat-title").textContent = 'Chat';
-    document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+    resetDeviceScroll();
 
     if (userChatUnsubRequest) userChatUnsubRequest();
     userChatUnsubRequest = db.collection('requests').doc(requestId)
@@ -1587,7 +1587,7 @@ body{
     document.getElementById("user-chat-waiting").style.display = 'none';
     document.getElementById("user-chat-body").style.display = 'flex';
     document.getElementById("user-chat-input-bar").style.display = 'flex';
-    document.getElementById('device').scrollTo({ top: 0, behavior: 'instant' });
+    resetDeviceScroll();
 
     if (userChatUnsubMessages) userChatUnsubMessages();
     if (userChatUnsubStatus) userChatUnsubStatus();
@@ -1655,7 +1655,7 @@ body{
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-my-chats").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
-    document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+    resetDeviceScroll();
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     const listEl = document.getElementById('my-chats-list');
     if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
@@ -2192,7 +2192,7 @@ function openLanguagePicker(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-language").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   document.querySelectorAll("#lang-picker .style-btn").forEach(b => b.classList.toggle("active", b.dataset.lang === getAppLang()));
 }
 
@@ -2200,7 +2200,7 @@ function closeLanguagePicker(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 const MENU_ITEMS_1 = [
@@ -2234,7 +2234,7 @@ function openPanchang(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-panchang").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   loadTodayPanchang();
   loadTodayChoghadiya();
   loadTodayHora();
@@ -2245,7 +2245,7 @@ function closePanchang(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 // Local card-name lookups (the tarot_predictions endpoint doesn't return
@@ -2331,7 +2331,7 @@ function openTarot(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-tarot").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   tarotMode = null;
   tarotCategory = null;
   tarot3Picks = [];
@@ -2345,7 +2345,7 @@ function closeTarot(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function tarotCardGrid(mode, count){
@@ -2911,13 +2911,13 @@ function openRemedyCategory(catId){
   `;
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-remedy-cat").classList.add("active");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeRemedyCategory(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-remedy").classList.add("active");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function renderMenus(){
@@ -2932,12 +2932,23 @@ function renderMenus(){
 
 /* ---------------- NAVIGATION ---------------- */
 
+function resetDeviceScroll(){
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const device = document.getElementById("device");
+  if (device) device.scrollTo({top:0, behavior:"instant"});
+}
+
 function goScreen(name){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + name).classList.add("active");
   document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.screen === name));
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  resetDeviceScroll();
 }
 
 let lastScreen = "astro";
@@ -3031,14 +3042,14 @@ function openDetail(id){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-detail").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeDetailScreen(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 /* ================= KUNDLI (real backend) ================= */
@@ -3052,7 +3063,7 @@ function openKundli(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-kundli").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   setKundliMode("new");
 }
 
@@ -3105,21 +3116,21 @@ function closeKundli(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function showKundliResultScreen(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-kundli-result").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeKundliResult(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 /* ================= KUNDLI MILAN (matchmaking) ================= */
@@ -3130,7 +3141,7 @@ function openMilan(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-milan").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   populateSavedKundliSelects();
 }
 
@@ -3138,21 +3149,21 @@ function closeMilan(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function showMilanResultScreen(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-milan-result").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeMilanResult(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 /* ================= NUMEROLOGY ================= */
@@ -3163,28 +3174,28 @@ function openNumerology(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-numerology").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeNumerology(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function showNumerologyResultScreen(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-numerology-result").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeNumerologyResult(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 /* ================= DAILY HOROSCOPE ================= */
@@ -3204,7 +3215,7 @@ function openHoroscope(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-horoscope").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   const grid = document.getElementById("zodiac-grid");
   if(!grid.dataset.built){
     grid.innerHTML = ZODIAC_SIGNS.map(s => `
@@ -3218,14 +3229,14 @@ function closeHoroscope(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function closeHoroscopeResult(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-horoscope").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 /* ================= KUNDLI SETTINGS ================= */
@@ -3246,7 +3257,7 @@ function openKundliSettings(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-kundli-settings").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
   const toggle = document.getElementById("toggle-nine-planets");
   toggle.classList.toggle("on", getShowOnlyNinePlanets());
 }
@@ -3255,7 +3266,7 @@ function closeKundliSettings(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 }
 
 function toggleNinePlanetsSetting(){
@@ -3333,7 +3344,7 @@ async function loadDailyHoroscope(sign){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-horoscope-result").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
-  document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+  resetDeviceScroll();
 
   const resultEl = document.getElementById("horoscope-result");
   resultEl.innerHTML = '<p style="text-align:center;padding:40px 20px;color:var(--ink-faint);">Loading today\'s horoscope…</p>';
