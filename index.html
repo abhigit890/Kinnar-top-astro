@@ -1940,7 +1940,16 @@ async function fetchTarot3Reading(){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "tarot", love, career, finance })
     });
-    const data = await res.json();
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch(parseErr){
+      el.innerHTML = `
+        <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>
+        <p style="text-align:center; font-size:10px; color:var(--ink-faint); margin-top:4px; word-break:break-all;">Raw response: ${rawText.slice(0,300) || "(empty)"}</p>
+        <button class="banner-btn tarot-reset-btn" onclick="resetTarot3()">Try Again</button>
+      `;
+      return;
+    }
     if(!data || !data.love){
       el.innerHTML = `
         <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>
@@ -1986,7 +1995,16 @@ async function fetchTarotYNReading(){
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "yesnotarot", tarot_id: tarotYNPick })
     });
-    const data = await res.json();
+    const rawText = await res.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch(parseErr){
+      el.innerHTML = `
+        <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>
+        <p style="text-align:center; font-size:10px; color:var(--ink-faint); margin-top:4px; word-break:break-all;">Raw response: ${rawText.slice(0,300) || "(empty)"}</p>
+        <button class="banner-btn tarot-reset-btn" onclick="resetTarotYN()">Try Again</button>
+      `;
+      return;
+    }
     if(!data || !data.name){
       el.innerHTML = `
         <p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>
