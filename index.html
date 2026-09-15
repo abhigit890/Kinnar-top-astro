@@ -1314,6 +1314,56 @@ body{
   <div class="toast" id="toast"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDubjcSirXbe4EJSFggYDveb4gVKUEElR0",
+    authDomain: "aangan-ecosystem.firebaseapp.com",
+    projectId: "aangan-ecosystem",
+    storageBucket: "aangan-ecosystem.firebasestorage.app",
+    messagingSenderId: "323610578849",
+    appId: "1:323610578849:web:d0b6128870160a786b85e0"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  // Anonymous sign-in so every user gets a stable ID without OTP/password
+  auth.signInAnonymously().catch(err => console.error('Anon sign-in failed:', err));
+
+  // TEMPORARY: hardcoded test astrologer UID, used for all Call/Chat requests
+  // until the astrologers list is connected to Firestore for real.
+  const TEST_ASTROLOGER_ID = "v0llWPrWjwawQUqbj4b4JQfDcR93";
+
+  async function sendRequestToAstrologer(type) {
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    if (!uid) {
+      showToast('Connecting... please try again in a moment.');
+      return;
+    }
+    let userName = localStorage.getItem('aangan_user_name');
+    if (!userName) {
+      userName = prompt('Please enter your name:') || 'Guest';
+      localStorage.setItem('aangan_user_name', userName);
+    }
+    try {
+      await db.collection('requests').add({
+        astrologerId: TEST_ASTROLOGER_ID,
+        userId: uid,
+        userName: userName,
+        status: 'pending',
+        type: type,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      showToast(type === 'chat' ? 'Chat request sent!' : 'Calling...');
+    } catch (err) {
+      showToast('Error: ' + err.message);
+    }
+  }
+</script>
+
 <script>
 /* =========================================================
    AANGAN — Kinnar Astro & Badhai App
@@ -2578,8 +2628,8 @@ function openDetail(id){
     </div>
 
     <div class="sticky-actions">
-      <button class="act-secondary banner-btn" onclick="showToast('Calling ' + '${a.name.split(' ')[0]}' + '...')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
-      <button class="act-primary banner-btn" onclick="showToast('Chat started with ' + '${a.name.split(' ')[0]}' + '!')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
+      <button class="act-secondary banner-btn" onclick="sendRequestToAstrologer('call')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
+      <button class="act-primary banner-btn" onclick="sendRequestToAstrologer('chat')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
     </div>
   `;
   selectedGiftId = null;
