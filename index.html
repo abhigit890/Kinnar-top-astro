@@ -1606,9 +1606,9 @@ body{
         });
         const device = document.getElementById('device');
         if (Date.now() - threadOpenedAt < 1200) {
-          device.scrollTo({ top: 0, behavior: 'instant' });
+          body.firstElementChild?.scrollIntoView({ behavior: 'instant', block: 'start' });
         } else {
-          device.scrollTo({ top: device.scrollHeight, behavior: 'smooth' });
+          body.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' });
         }
       });
   }
