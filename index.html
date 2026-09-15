@@ -1562,9 +1562,10 @@ body{
     document.getElementById("user-chat-waiting").style.display = 'none';
     document.getElementById("user-chat-body").style.display = 'flex';
     document.getElementById("user-chat-input-bar").style.display = 'flex';
+    document.getElementById('device').scrollTo({ top: 0, behavior: 'instant' });
 
     if (userChatUnsubMessages) userChatUnsubMessages();
-    let isFirstChatRender = true;
+    const threadOpenedAt = Date.now();
     userChatUnsubMessages = db.collection('chats').doc(chatId).collection('messages')
       .orderBy('sentAt', 'asc')
       .onSnapshot((snap) => {
@@ -1580,9 +1581,8 @@ body{
           body.appendChild(bubble);
         });
         const device = document.getElementById('device');
-        if (isFirstChatRender) {
+        if (Date.now() - threadOpenedAt < 1200) {
           device.scrollTo({ top: 0, behavior: 'instant' });
-          isFirstChatRender = false;
         } else {
           device.scrollTo({ top: device.scrollHeight, behavior: 'smooth' });
         }
