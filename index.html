@@ -935,7 +935,7 @@ body{
   transition:opacity .25s ease, transform .25s ease; white-space:nowrap;
 }
 .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
-.u-bubble{ max-width:75%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
+.u-bubble{ max-width:75%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.4; white-space:pre-line; }
 .u-bubble.from-me{ align-self:flex-end; background:var(--gold); color:#2E1D0C; border-bottom-right-radius:4px; }
 .u-bubble.from-astro{ align-self:flex-start; background:var(--card-hi); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:4px; }
 .u-bubble.from-system{ align-self:center; background:rgba(62,126,113,0.15); border:1px solid var(--jade); color:var(--jade); font-size:12px; font-weight:700; text-align:center; padding:6px 14px; }
@@ -1327,8 +1327,13 @@ body{
       <div class="kundli-form">
         <label class="k-label">Your Name</label>
         <input class="k-input" type="text" id="ck-name" placeholder="Your name">
+        <label class="k-label">Gender</label>
+        <div class="chart-style-toggle" id="ck-gender-toggle">
+          <button type="button" class="style-btn active" data-gender="Male" onclick="setCkGender(this)">Male</button>
+          <button type="button" class="style-btn" data-gender="Female" onclick="setCkGender(this)">Female</button>
+        </div>
         <label class="k-label">Date of Birth</label>
-        <input class="k-input" type="date" id="ck-dob">
+        <div class="dob-row" id="ck-dob-row"></div>
         <label class="k-label">Time of Birth</label>
         <input class="k-input" type="time" id="ck-tob">
         <label class="k-label">Place of Birth</label>
@@ -1344,8 +1349,13 @@ body{
         <div class="kundli-form">
           <label class="k-label">Partner's Name</label>
           <input class="k-input" type="text" id="ck-p-name" placeholder="Partner's name">
+          <label class="k-label">Partner's Gender</label>
+          <div class="chart-style-toggle" id="ck-p-gender-toggle">
+            <button type="button" class="style-btn active" data-gender="Male" onclick="setCkGender(this)">Male</button>
+            <button type="button" class="style-btn" data-gender="Female" onclick="setCkGender(this)">Female</button>
+          </div>
           <label class="k-label">Partner's Date of Birth</label>
-          <input class="k-input" type="date" id="ck-p-dob">
+          <div class="dob-row" id="ck-p-dob-row"></div>
           <label class="k-label">Partner's Time of Birth</label>
           <input class="k-input" type="time" id="ck-p-tob">
           <label class="k-label">Partner's Place of Birth</label>
@@ -1435,42 +1445,83 @@ body{
   }
 
   // ---- Chat kundli-details form ----
+  function setCkGender(btn) {
+    btn.parentElement.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function formatDobDisplay(yyyyMmDd) {
+    if (!yyyyMmDd) return '-';
+    const [y, m, d] = yyyyMmDd.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function formatTobDisplay(hhMm) {
+    if (!hhMm) return '-';
+    let [h, m] = hhMm.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+  }
+
   function openChatKundliForm() {
     const savedName = localStorage.getItem('aangan_user_name') || '';
     document.getElementById('ck-name').value = savedName;
-    document.getElementById('ck-dob').value = '';
+    renderDobRow('ck-dob');
     document.getElementById('ck-tob').value = '';
     document.getElementById('ck-pob').value = '';
+    document.getElementById('ck-gender-toggle').querySelectorAll('.style-btn').forEach((b,i) => b.classList.toggle('active', i===0));
     document.getElementById('ck-add-partner').checked = false;
     document.getElementById('ck-partner-block').style.display = 'none';
     document.getElementById('ck-p-name').value = '';
-    document.getElementById('ck-p-dob').value = '';
+    renderDobRow('ck-p-dob');
     document.getElementById('ck-p-tob').value = '';
     document.getElementById('ck-p-pob').value = '';
+    document.getElementById('ck-p-gender-toggle').querySelectorAll('.style-btn').forEach((b,i) => b.classList.toggle('active', i===0));
     document.getElementById('ck-error').textContent = '';
     document.getElementById('overlay-chat-kundli').classList.add('show');
   }
 
   function submitChatKundliForm() {
     const name = document.getElementById('ck-name').value.trim();
-    const dob = document.getElementById('ck-dob').value;
+    const dobVal = getDobValue('ck-dob');
     const tob = document.getElementById('ck-tob').value;
     const pob = document.getElementById('ck-pob').value.trim();
+    const gender = document.getElementById('ck-gender-toggle').querySelector('.style-btn.active').dataset.gender;
 
-    if (!name || !dob || !tob || !pob) {
+    if (!name || !dobVal || !tob || !pob) {
       document.getElementById('ck-error').textContent = 'Please fill all your details.';
       return;
     }
+    const [hour, min] = tob.split(':').map(Number);
 
-    const selfDetails = { name, dob, tob, pob };
+    const selfDetails = {
+      name, gender,
+      day: dobVal.day, month: dobVal.month, year: dobVal.year,
+      dobDisplay: formatDobDisplay(`${dobVal.year}-${String(dobVal.month).padStart(2,'0')}-${String(dobVal.day).padStart(2,'0')}`),
+      hour, min,
+      tobDisplay: formatTobDisplay(tob),
+      pob
+    };
+
     let partnerDetails = null;
     if (document.getElementById('ck-add-partner').checked) {
       const pName = document.getElementById('ck-p-name').value.trim();
-      const pDob = document.getElementById('ck-p-dob').value;
+      const pDobVal = getDobValue('ck-p-dob');
       const pTob = document.getElementById('ck-p-tob').value;
       const pPob = document.getElementById('ck-p-pob').value.trim();
-      if (pName || pDob || pTob || pPob) {
-        partnerDetails = { name: pName, dob: pDob, tob: pTob, pob: pPob };
+      const pGender = document.getElementById('ck-p-gender-toggle').querySelector('.style-btn.active').dataset.gender;
+      if (pName || pDobVal || pTob || pPob) {
+        const [pHour, pMin] = pTob ? pTob.split(':').map(Number) : [null, null];
+        partnerDetails = {
+          name: pName, gender: pGender,
+          day: pDobVal ? pDobVal.day : null, month: pDobVal ? pDobVal.month : null, year: pDobVal ? pDobVal.year : null,
+          dobDisplay: pDobVal ? formatDobDisplay(`${pDobVal.year}-${String(pDobVal.month).padStart(2,'0')}-${String(pDobVal.day).padStart(2,'0')}`) : '-',
+          hour: pHour, min: pMin,
+          tobDisplay: pTob ? formatTobDisplay(pTob) : '-',
+          pob: pPob
+        };
       }
     }
 
@@ -1513,6 +1564,7 @@ body{
     document.getElementById("user-chat-input-bar").style.display = 'flex';
 
     if (userChatUnsubMessages) userChatUnsubMessages();
+    let isFirstChatRender = true;
     userChatUnsubMessages = db.collection('chats').doc(chatId).collection('messages')
       .orderBy('sentAt', 'asc')
       .onSnapshot((snap) => {
@@ -1528,7 +1580,12 @@ body{
           body.appendChild(bubble);
         });
         const device = document.getElementById('device');
-        device.scrollTo({ top: device.scrollHeight, behavior: 'smooth' });
+        if (isFirstChatRender) {
+          device.scrollTo({ top: 0, behavior: 'instant' });
+          isFirstChatRender = false;
+        } else {
+          device.scrollTo({ top: device.scrollHeight, behavior: 'smooth' });
+        }
       });
   }
 
