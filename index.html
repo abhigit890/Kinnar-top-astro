@@ -2392,6 +2392,7 @@ function pickTarotCard(pos){
   } else {
     if(tarotYNPick !== null) return;
     tarotYNPick = pos;
+    tarotYNRandomId = 1 + Math.floor(Math.random() * 22);
     const cardEl = document.getElementById(`tarot-card-yn-${pos}`);
     if(cardEl) cardEl.classList.add("used");
     fetchTarotYNReading();
@@ -2436,7 +2437,7 @@ async function fetchTarotYNReading(){
     const res = await fetch(`${BACKEND_URL}/api/kundli`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "yesnotarot", tarot_id: tarotYNPick })
+      body: JSON.stringify({ action: "yesnotarot", tarot_id: tarotYNRandomId })
     });
     const rawText = await res.text();
     let data;
