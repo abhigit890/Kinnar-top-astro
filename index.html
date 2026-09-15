@@ -1406,6 +1406,18 @@ body{
   // Anonymous sign-in so every user gets a stable ID without OTP/password
   auth.signInAnonymously().catch(err => console.error('Anon sign-in failed:', err));
 
+  // ---- Live remedies catalog (managed from the admin panel) ----
+  window.LIVE_REMEDIES = {}; // id -> {cat, name, desc, price, photo}
+  db.collection('remedies').onSnapshot((snap) => {
+    const updated = {};
+    snap.forEach(d => { updated[d.id] = d.data(); });
+    window.LIVE_REMEDIES = updated;
+    // Re-render whichever remedy screen is currently open, if any
+    if (document.getElementById('screen-remedy-cat')?.classList.contains('active') && window.currentRemedyCatId) {
+      openRemedyCategory(window.currentRemedyCatId);
+    }
+  });
+
   // TEMPORARY: hardcoded test astrologer UID, used for all Call/Chat requests
   // until the astrologers list is connected to Firestore for real.
   const TEST_ASTROLOGER_ID = "v0llWPrWjwawQUqbj4b4JQfDcR93";
@@ -1574,6 +1586,18 @@ body{
         snap.forEach(d => {
           const m = d.data();
           const bubble = document.createElement('div');
+          if (m.senderType === 'remedy') {
+            bubble.className = 'u-bubble from-astro';
+            bubble.style.maxWidth = '85%';
+            bubble.innerHTML = `
+              ${m.remedyPhoto ? `<img src="${m.remedyPhoto}" style="width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:8px; margin-bottom:8px;">` : ''}
+              <div style="font-weight:700; font-size:13.5px;">${m.remedyName || ''}</div>
+              <div style="font-size:12px; color:var(--ink-faint); margin:2px 0 8px;">${m.remedyPrice || ''}</div>
+              <button class="banner-btn sm" style="width:100%;" onclick="buyRemedyFromChat('${m.remedyId||''}','${(m.remedyName||'').replace(/'/g,"\\'")}')"> ${bannerInner("Buy")} </button>
+            `;
+            body.appendChild(bubble);
+            return;
+          }
           const cls = m.senderType === 'user' ? 'from-me' : m.senderType === 'system' ? 'from-system' : 'from-astro';
           bubble.className = 'u-bubble ' + cls;
           const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
@@ -2790,13 +2814,16 @@ function renderRemedyGrid(){
 function openRemedyCategory(catId){
   const c = REMEDY_CATEGORIES.find(x => x.id === catId);
   if(!c) return;
-  const items = REMEDY_ITEMS.filter(x => x.cat === catId);
+  window.currentRemedyCatId = catId;
+  const items = Object.entries(window.LIVE_REMEDIES || {})
+    .filter(([id, it]) => it.cat === catId)
+    .map(([id, it]) => ({ id, ...it }));
   document.getElementById("remedy-cat-body").innerHTML = `
     <div class="section-title" style="font-size:17px; margin-bottom:4px;">${c.name}</div>
     <p style="font-size:12px; color:var(--ink-faint); margin:0 0 14px;">${c.desc}</p>
-    ${items.map(it => `
+    ${items.length === 0 ? `<p style="font-size:12.5px; color:var(--ink-faint); text-align:center; padding:30px 0;">No remedies here yet.</p>` : items.map(it => `
       <div class="remedy-card gold-card remedy-card-wide">
-        <div class="remedy-ic icon-frame" style="--tint:${it.bg}">${svg(c.icon,19)}</div>
+        ${it.photo ? `<img src="${it.photo}" style="width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:10px; margin-bottom:10px;">` : `<div class="remedy-ic icon-frame" style="--tint:${it.bg || 'rgba(217,169,79,0.16)'}">${svg(c.icon,19)}</div>`}
         <p class="remedy-name">${it.name}</p>
         <p class="remedy-desc">${it.desc}</p>
         <div class="remedy-foot remedy-foot-full">
@@ -4414,27 +4441,15 @@ function sendGift(astroId){
 let remedySelectedAstro = null;
 
 function openRemedy(id){
-  const r = REMEDY_ITEMS.find(x => x.id === id);
+  const r = window.LIVE_REMEDIES && window.LIVE_REMEDIES[id];
   if(!r) return;
-  remedySelectedAstro = null;
-  const eligible = ASTROLOGERS.filter(a => r.eligible.includes(a.id));
+  window.currentRemedyOrderId = id;
   document.getElementById("remedy-body").innerHTML = `
+    ${r.photo ? `<img src="${r.photo}" style="width:100%; aspect-ratio:16/9; object-fit:cover; border-radius:12px; margin-bottom:12px;">` : ''}
     <h2 class="display" style="font-size:19px; margin:6px 0 2px;">${r.name}</h2>
-    <p style="font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;">${r.desc} · ${r.price}</p>
-    <div class="section-title" style="font-size:14px; margin-bottom:10px;">Choose an Astrologer</div>
-    <div id="remedy-astro-list">
-      ${eligible.map(a => `
-        <div class="remedy-pick-item gold-card">
-          <div class="avatar" style="background:${avatarColor(a.id)}">${initials(a.name)}</div>
-          <div class="ri">
-            <b>${a.name}</b>
-            <span>★ ${a.rating} · ${a.languages}</span>
-          </div>
-          <button class="select-btn" id="pick-${a.id}" onclick="pickRemedyAstro(${a.id})">Select</button>
-        </div>
-      `).join("")}
-    </div>
-    <button class="act-primary banner-btn" style="width:100%;margin-top:8px;" onclick="confirmRemedy('${r.name}')">${bannerInner("Confirm Booking")}</button>
+    <p style="font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;">${r.desc}</p>
+    <p style="font-size:15px; font-weight:700; color:var(--gold-text); margin:0 0 18px;">${r.price}</p>
+    <button class="act-primary banner-btn" style="width:100%;" onclick="confirmRemedy('${r.name}')">${bannerInner("Request This Remedy")}</button>
   `;
   document.getElementById("overlay-remedy").classList.add("show");
 }
@@ -4449,14 +4464,41 @@ function pickRemedyAstro(id){
   });
 }
 
-function confirmRemedy(remedyName){
-  if(!remedySelectedAstro){
-    showToast("Please select an astrologer first");
-    return;
+async function confirmRemedy(remedyName){
+  const uid = auth.currentUser ? auth.currentUser.uid : null;
+  const userName = localStorage.getItem('aangan_user_name') || 'Guest';
+  try {
+    await db.collection('remedyOrders').add({
+      remedyId: window.currentRemedyOrderId || null,
+      remedyName,
+      userId: uid,
+      userName,
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast(`${remedyName} requested! We'll reach out to you shortly.`);
+  } catch (e) {
+    showToast('Could not send request. Please try again.');
   }
-  const a = ASTROLOGERS.find(x => x.id === remedySelectedAstro);
-  showToast(`${remedyName} booked with ${a.name}!`);
   closeOverlay("overlay-remedy");
+}
+
+async function buyRemedyFromChat(remedyId, remedyName){
+  const uid = auth.currentUser ? auth.currentUser.uid : null;
+  const userName = localStorage.getItem('aangan_user_name') || 'Guest';
+  try {
+    await db.collection('remedyOrders').add({
+      remedyId: remedyId || null,
+      remedyName,
+      userId: uid,
+      userName,
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast(`${remedyName} requested! We'll reach out to you shortly.`);
+  } catch (e) {
+    showToast('Could not send request. Please try again.');
+  }
 }
 
 function closeOverlay(id){ document.getElementById(id).classList.remove("show"); }
