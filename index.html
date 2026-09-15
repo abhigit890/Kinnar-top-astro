@@ -221,8 +221,14 @@ body{
 .kundli-page{display:none; padding:0 20px 24px; box-sizing:border-box;}
 
 .tarot-slots{display:flex; gap:8px; margin:2px 0 14px;}
-.tarot-slot{flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:1.5px dashed var(--line); font-size:11px; color:var(--ink-faint); font-weight:600;}
+.tarot-slot{flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:1.5px dashed var(--line); font-size:11px; color:var(--ink-faint); font-weight:600; cursor:pointer;}
 .tarot-slot.filled{border-style:solid; border-color:var(--gold); color:var(--gold-text); background:rgba(217,169,79,0.1);}
+.tarot-slot.armed{border-style:solid; border-color:var(--gold); background:var(--gold); color:#fff; box-shadow:0 0 0 3px rgba(217,169,79,0.25);}
+.tarot-revealed-row{display:flex; gap:10px; justify-content:space-between; margin:6px 0 16px;}
+.tarot-revealed-card{flex:1; text-align:center;}
+.tarot-revealed-face{aspect-ratio:2/3; border-radius:8px; background:linear-gradient(160deg,var(--gold-hi),var(--gold-deep)); border:1.5px solid var(--gold); display:flex; align-items:center; justify-content:center; color:#fff; font-size:22px; margin-bottom:6px;}
+.tarot-revealed-name{font-size:11px; font-weight:700; color:var(--ink); margin:0; line-height:1.2;}
+.tarot-revealed-label{font-size:10px; color:var(--ink-faint); margin:2px 0 0;}
 .tarot-grid{display:grid; grid-template-columns:repeat(9,1fr); gap:4px; margin-bottom:8px;}
 .tarot-card{aspect-ratio:2/3; border-radius:4px; background:linear-gradient(160deg,var(--gold-hi),var(--gold-deep)); border:1px solid var(--gold); display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.85); font-size:9px; cursor:pointer;}
 .tarot-card.picked{outline:2px solid var(--gold-text); outline-offset:1px;}
@@ -1838,6 +1844,45 @@ function closePanchang(){
   document.getElementById("device").scrollTo({top:0, behavior:"instant"});
 }
 
+// Local card-name lookups (the tarot_predictions endpoint doesn't return
+// names, so we keep our own copy for the 78-card deck; yes_no_tarot uses a
+// completely separate 22-card Major-Arcana-only numbering).
+const TAROT_78_NAMES = {
+  1:"King of Wands",2:"Queen of Wands",3:"Knight of Wands",4:"Page of Wands",5:"Ten of Wands",
+  6:"Nine of Wands",7:"Eight of Wands",8:"Seven of Wands",9:"Six of Wands",10:"Five of Wands",
+  11:"Four of Wands",12:"Three of Wands",13:"Two of Wands",14:"Ace of Wands",15:"King of Swords",
+  16:"Queen of Swords",17:"Knight of Swords",18:"Page of Swords",19:"Ten of Swords",20:"Nine of Swords",
+  21:"Eight of Swords",22:"Seven of Swords",23:"Six of Swords",24:"Five of Swords",25:"Four of Swords",
+  26:"Three of Swords",27:"Two of Swords",28:"Ace of Swords",29:"King of Cups",30:"Queen of Cups",
+  31:"Knight of Cups",32:"Page of Cups",33:"Ten of Cups",34:"Nine of Cups",35:"Eight of Cups",
+  36:"Seven of Cups",37:"Six of Cups",38:"Five of Cups",39:"Four of Cups",40:"Three of Cups",
+  41:"Two of Cups",42:"Ace of Cups",43:"King of Pentacles",44:"Queen of Pentacles",45:"Knight of Pentacles",
+  46:"Page of Pentacles",47:"Ten of Pentacles",48:"Nine of Pentacles",49:"Eight of Pentacles",50:"Seven of Pentacles",
+  51:"Six of Pentacles",52:"Five of Pentacles",53:"Four of Pentacles",54:"Three of Pentacles",55:"Two of Pentacles",
+  56:"Ace of Pentacles",57:"The Fool",58:"The Magician",59:"The High Priestess",60:"The Empress",
+  61:"The Emperor",62:"The Hierophant",63:"The Lovers",64:"The Chariot",65:"Strength",
+  66:"The Hermit",67:"Wheel of Fortune",68:"Justice",69:"The Hanged Man",70:"Death",
+  71:"Temperance",72:"The Devil",73:"The Tower",74:"The Star",75:"The Moon",
+  76:"The Sun",77:"Judgement",78:"The World"
+};
+const TAROT_22_NAMES = {
+  1:"The Magician",2:"The Hierophant",3:"The Emperor",4:"Death",5:"The Hermit",
+  6:"The Devil",7:"Temperance",8:"The Fool",9:"The Chariot",10:"Justice",
+  11:"The Judgment",12:"Strength",13:"The Empress",14:"The Wheel of Fortune",15:"The Star",
+  16:"The Moon",17:"The Lovers",18:"The Sun",19:"The Hanged Man",20:"The Tower",
+  21:"The World",22:"The High Priestess"
+};
+const TAROT_CATS = [
+  { key:"love", label:"Love" },
+  { key:"career", label:"Career" },
+  { key:"finance", label:"Finance" },
+];
+
+let tarot3Picks = { love:null, career:null, finance:null };
+let tarotArmedCategory = null;
+let tarotYNPick = null;
+let tarotActiveTab = 0;
+
 function openTarot(){
   const activeEl = document.querySelector(".screen.active");
   if(activeEl) lastScreen = activeEl.id.replace("screen-", "");
@@ -1845,7 +1890,8 @@ function openTarot(){
   document.getElementById("screen-tarot").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
   document.getElementById("device").scrollTo({top:0, behavior:"instant"});
-  tarot3Picks = [];
+  tarot3Picks = { love:null, career:null, finance:null };
+  tarotArmedCategory = null;
   tarotYNPick = null;
   tarotActiveTab = 0;
   renderTarotScreen();
@@ -1858,16 +1904,9 @@ function closeTarot(){
   document.getElementById("device").scrollTo({top:0, behavior:"instant"});
 }
 
-// Two picking modes on one screen: pick 3 cards (Love/Career/Finance) or
-// pick 1 card (Yes/No). Cards are shown face-down — the user's choice of
-// position is what determines which card they get.
-let tarot3Picks = [];      // positions (1-78) picked, in order: love, career, finance
-let tarotYNPick = null;    // position (1-78) picked for yes/no
-let tarotActiveTab = 0;
-
-function tarotCardGrid(mode){
+function tarotCardGrid(mode, count){
   let html = '<div class="tarot-grid">';
-  for(let i = 1; i <= 78; i++){
+  for(let i = 1; i <= count; i++){
     html += `<div class="tarot-card" id="tarot-card-${mode}-${i}" onclick="pickTarotCard(${i}, '${mode}')">✦</div>`;
   }
   html += '</div>';
@@ -1889,16 +1928,17 @@ function renderTarotScreen(){
     <div>
       <div class="kundli-page ${tarotActiveTab===0?'active':''}" data-page="0">
         <div class="tarot-slots">
-          <div class="tarot-slot" id="tarot-slot-love">Love</div>
-          <div class="tarot-slot" id="tarot-slot-career">Career</div>
-          <div class="tarot-slot" id="tarot-slot-finance">Finance</div>
+          ${TAROT_CATS.map(c => `
+            <div class="tarot-slot ${tarot3Picks[c.key] ? 'filled' : (tarotArmedCategory===c.key ? 'armed' : '')}" id="tarot-cat-${c.key}" onclick="armTarotCategory('${c.key}')">${c.label}${tarot3Picks[c.key] ? ' ✓' : ''}</div>
+          `).join("")}
         </div>
-        ${tarotCardGrid("3")}
+        <p id="tarot-arm-hint" style="font-size:11.5px; color:var(--ink-faint); margin:0 0 10px;">${tarotArmedCategory ? `Now tap a card for ${tarotArmedCategory.charAt(0).toUpperCase()+tarotArmedCategory.slice(1)}` : "Tap Love, Career or Finance above to start"}</p>
+        ${tarotCardGrid("3", 78)}
         <div id="tarot3-result"></div>
       </div>
       <div class="kundli-page ${tarotActiveTab===1?'active':''}" data-page="1">
         <p style="font-size:12px; color:var(--ink-faint); margin:0 0 10px;">Think of a yes/no question, then pick one card.</p>
-        ${tarotCardGrid("yn")}
+        ${tarotCardGrid("yn", 22)}
         <div id="tarotyn-result"></div>
       </div>
     </div>
@@ -1912,16 +1952,33 @@ function jumpToTarotTab(idx){
   document.querySelectorAll("#tarot-tabs-bar .kundli-tab-pill").forEach(b => b.classList.toggle("active", Number(b.dataset.idx) === idx));
 }
 
+function armTarotCategory(cat){
+  if(tarot3Picks[cat]) return; // already filled, locked
+  tarotArmedCategory = cat;
+  document.querySelectorAll(".tarot-slot").forEach(s => s.classList.remove("armed"));
+  document.getElementById(`tarot-cat-${cat}`).classList.add("armed");
+  document.getElementById("tarot-arm-hint").textContent = `Now tap a card for ${cat.charAt(0).toUpperCase()+cat.slice(1)}`;
+}
+
 function pickTarotCard(pos, mode){
   if(mode === "3"){
-    if(tarot3Picks.includes(pos) || tarot3Picks.length >= 3) return;
-    tarot3Picks.push(pos);
+    if(!tarotArmedCategory) return; // must pick a category first
+    const cat = tarotArmedCategory;
+    tarot3Picks[cat] = pos;
     document.getElementById(`tarot-card-3-${pos}`).classList.add("used");
-    const labels = ["love","career","finance"];
-    const slot = document.getElementById(`tarot-slot-${labels[tarot3Picks.length-1]}`);
+    const slot = document.getElementById(`tarot-cat-${cat}`);
+    slot.classList.remove("armed");
     slot.classList.add("filled");
-    slot.textContent = labels[tarot3Picks.length-1].charAt(0).toUpperCase() + labels[tarot3Picks.length-1].slice(1) + " ✓";
-    if(tarot3Picks.length === 3) fetchTarot3Reading();
+    slot.textContent = cat.charAt(0).toUpperCase()+cat.slice(1) + " ✓";
+    tarotArmedCategory = null;
+    const remaining = TAROT_CATS.filter(c => !tarot3Picks[c.key]);
+    const hint = document.getElementById("tarot-arm-hint");
+    if(remaining.length){
+      hint.textContent = "Tap " + remaining.map(c=>c.label).join(", ") + " above to continue";
+    } else {
+      hint.textContent = "All three picked — revealing your cards…";
+      fetchTarot3Reading();
+    }
   } else {
     if(tarotYNPick !== null) return;
     tarotYNPick = pos;
@@ -1930,10 +1987,20 @@ function pickTarotCard(pos, mode){
   }
 }
 
+function tarotRevealedCardHtml(pos, name, label){
+  return `
+    <div class="tarot-revealed-card">
+      <div class="tarot-revealed-face">✦</div>
+      <p class="tarot-revealed-name">${name}</p>
+      ${label ? `<p class="tarot-revealed-label">${label}</p>` : ""}
+    </div>
+  `;
+}
+
 async function fetchTarot3Reading(){
   const el = document.getElementById("tarot3-result");
   el.innerHTML = '<p style="text-align:center;padding:20px;color:var(--ink-faint);">Revealing your cards…</p>';
-  const [love, career, finance] = tarot3Picks;
+  const { love, career, finance } = tarot3Picks;
   try {
     const res = await fetch(`${BACKEND_URL}/api/kundli`, {
       method: "POST",
@@ -1958,18 +2025,17 @@ async function fetchTarot3Reading(){
       `;
       return;
     }
-    const sections = [
-      { key:"love", title:"Love" },
-      { key:"career", title:"Career" },
-      { key:"finance", title:"Finance" },
-    ];
-    el.innerHTML = sections.map(s => `
-      <div class="section-title" style="font-size:14px; margin:20px 0 10px;">${s.title}</div>
+    const revealHtml = `<div class="tarot-revealed-row">` +
+      TAROT_CATS.map(c => tarotRevealedCardHtml(tarot3Picks[c.key], TAROT_78_NAMES[tarot3Picks[c.key]] || "Unknown", c.label)).join("") +
+      `</div>`;
+    const sectionsHtml = TAROT_CATS.map(c => `
+      <div class="section-title" style="font-size:14px; margin:20px 0 10px;">${c.label}</div>
       <div class="report-block gold-card">
-        <p class="about-text" id="tarot-${s.key}-text">${data[s.key]}</p>
-        <div class="see-more-wrap"><button class="see-more-btn" onclick="toggleReportText('tarot-${s.key}-text', this)">Read More</button></div>
+        <p class="about-text" id="tarot-${c.key}-text">${data[c.key]}</p>
+        <div class="see-more-wrap"><button class="see-more-btn" onclick="toggleReportText('tarot-${c.key}-text', this)">Read More</button></div>
       </div>
-    `).join("") + `
+    `).join("");
+    el.innerHTML = revealHtml + sectionsHtml + `
       <button class="banner-btn tarot-reset-btn" onclick="resetTarot3()">Pick New Cards</button>
     `;
     el.scrollIntoView({ behavior:"smooth", block:"start" });
@@ -1982,7 +2048,8 @@ async function fetchTarot3Reading(){
 }
 
 function resetTarot3(){
-  tarot3Picks = [];
+  tarot3Picks = { love:null, career:null, finance:null };
+  tarotArmedCategory = null;
   renderTarotScreen();
 }
 
@@ -2015,6 +2082,9 @@ async function fetchTarotYNReading(){
     }
     const isYes = (data.value || "").toLowerCase() === "yes";
     el.innerHTML = `
+      <div class="tarot-revealed-row" style="justify-content:center;">
+        ${tarotRevealedCardHtml(tarotYNPick, data.name, null)}
+      </div>
       <div class="report-block gold-card">
         <div class="pr-top" style="margin-bottom:8px;">
           <span class="p-name">${data.name}</span>
@@ -2038,6 +2108,7 @@ function resetTarotYN(){
   tarotYNPick = null;
   renderTarotScreen();
 }
+
 
 function renderMiniAstro(){
   const el = document.getElementById("mini-scroll");
