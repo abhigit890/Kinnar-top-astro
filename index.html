@@ -1303,18 +1303,30 @@ body{
   </section>
 
   <section class="screen" id="screen-chat">
-    <div class="detail-topbar">
-      <button class="back-btn" onclick="closeUserChatScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
-      <span id="user-chat-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Chat</span>
+    <div class="detail-topbar" style="display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center;">
+        <button class="back-btn" onclick="closeUserChatScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+        <span id="user-chat-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Chat</span>
+      </div>
+      <span id="user-end-chat-btn" style="font-size:12px; color:var(--rose); border:1px solid var(--rose); border-radius:14px; padding:5px 12px; cursor:pointer;">End Chat</span>
     </div>
-    <div id="user-chat-waiting" class="empty-state" style="text-align:center; padding:60px 20px; color:var(--ink-faint);">
+    <div id="user-chat-waiting" class="empty-state" style="text-align:center; padding:120px 20px 20px; color:var(--ink-faint);">
       Waiting for the astrologer to accept your request...
     </div>
-    <div id="user-chat-body" style="display:none; padding:14px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
+    <div id="user-chat-body" style="display:none; padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
     <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
       <input type="text" id="user-chat-input" placeholder="Type a message..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
       <button id="user-chat-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
     </div>
+  </section>
+
+  <!-- ================= MY CHATS (HISTORY) ================= -->
+  <section class="screen" id="screen-my-chats">
+    <div class="detail-topbar">
+      <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+      <span style="font-weight:700; color:var(--gold-text); margin-left:8px;">Chat History</span>
+    </div>
+    <div id="my-chats-list" style="padding:64px 14px 40px;"></div>
   </section>
 
   <!-- ================= CHAT KUNDLI DETAILS SHEET ================= -->
@@ -1544,6 +1556,7 @@ body{
 
   // ---- User-side chat screen ----
   let userChatUnsubMessages = null;
+  let userChatUnsubStatus = null;
   let userChatUnsubRequest = null;
 
   function openUserChatWaiting(requestId) {
@@ -1577,6 +1590,13 @@ body{
     document.getElementById('device').scrollTo({ top: 0, behavior: 'instant' });
 
     if (userChatUnsubMessages) userChatUnsubMessages();
+    if (userChatUnsubStatus) userChatUnsubStatus();
+    userChatUnsubStatus = db.collection('chats').doc(chatId).onSnapshot((chatSnap) => {
+      const ended = chatSnap.exists && chatSnap.data() && chatSnap.data().status === 'ended';
+      document.getElementById('user-chat-input').disabled = ended;
+      document.getElementById('user-chat-send').disabled = ended;
+      document.getElementById('user-end-chat-btn').style.display = ended ? 'none' : 'block';
+    });
     const threadOpenedAt = Date.now();
     userChatUnsubMessages = db.collection('chats').doc(chatId).collection('messages')
       .orderBy('sentAt', 'asc')
@@ -1630,9 +1650,51 @@ body{
     }, { merge: true });
   }
 
+  // ---- My Chats (history) list ----
+  window.openUserChatsList = function() {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-my-chats").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    const listEl = document.getElementById('my-chats-list');
+    if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
+    listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    db.collection('chats').where('userId', '==', uid).orderBy('lastMessageAt', 'desc')
+      .onSnapshot((snap) => {
+        if (snap.empty) {
+          listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px; padding:30px 0;">No chats yet.</p>';
+          return;
+        }
+        listEl.innerHTML = '';
+        snap.forEach(d => {
+          const c = d.data();
+          const time = c.lastMessageAt && c.lastMessageAt.toDate ? c.lastMessageAt.toDate().toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+          const row = document.createElement('div');
+          row.className = 'gold-card';
+          row.style.cssText = 'padding:14px; margin-bottom:10px; cursor:pointer;';
+          row.innerHTML = `
+            <div style="display:flex; justify-content:space-between;"><b style="font-size:14px;">Astrologer</b><span style="font-size:11px; color:var(--ink-faint);">${time}</span></div>
+            <div style="font-size:12.5px; color:var(--ink-faint); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.lastMessage || ''}</div>
+          `;
+          row.addEventListener('click', () => openUserChatFromHistory(d.id));
+          listEl.appendChild(row);
+        });
+      });
+  };
+
+  function openUserChatFromHistory(chatId) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-chat").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    document.getElementById("user-chat-waiting").style.display = 'none';
+    openUserChatThread(chatId);
+  }
+
   function closeUserChatScreen() {
     if (userChatUnsubMessages) { userChatUnsubMessages(); userChatUnsubMessages = null; }
     if (userChatUnsubRequest) { userChatUnsubRequest(); userChatUnsubRequest = null; }
+    if (userChatUnsubStatus) { userChatUnsubStatus(); userChatUnsubStatus = null; }
     window.currentUserChatId = null;
     closeDetailScreen();
   }
@@ -1642,6 +1704,17 @@ body{
     const input = document.getElementById('user-chat-input');
     if (sendBtn) sendBtn.addEventListener('click', sendUserMessage);
     if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendUserMessage(); });
+    const endBtn = document.getElementById('user-end-chat-btn');
+    if (endBtn) endBtn.addEventListener('click', async () => {
+      if (!window.currentUserChatId) return;
+      if (!confirm('End this chat?')) return;
+      await db.collection('chats').doc(window.currentUserChatId).update({
+        status: 'ended', endedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await db.collection('chats').doc(window.currentUserChatId).collection('messages').add({
+        text: 'This chat has been ended', senderType: 'system', sentAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
   });
 </script>
 
@@ -2133,7 +2206,7 @@ function closeLanguagePicker(){
 const MENU_ITEMS_1 = [
   { icon:"gear", label:"Kundli Settings", action:"kundliSettings" },
   { icon:"book", label:"My Bookings" },
-  { icon:"chat", label:"Chat History" },
+  { icon:"chat", label:"Chat History", action:"chatHistory" },
   { icon:"globe", label:"App Language", action:"appLanguage" },
 ];
 const MENU_ITEMS_2 = [
@@ -2848,7 +2921,7 @@ function closeRemedyCategory(){
 }
 
 function renderMenus(){
-  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()" };
+  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()" };
   document.getElementById("menu-list").innerHTML = MENU_ITEMS_1.map(m => `
     <div class="menu-item" ${menuActionMap[m.action] ? `onclick="${menuActionMap[m.action]}"` : ''}><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
   `).join("");
