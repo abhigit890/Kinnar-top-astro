@@ -1329,6 +1329,19 @@ body{
     <div id="my-chats-list" style="padding:64px 14px 40px;"></div>
   </section>
 
+  <!-- ================= SUPPORT TICKET CHAT ================= -->
+  <section class="screen" id="screen-ticket">
+    <div class="detail-topbar">
+      <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+      <span id="ticket-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Ticket</span>
+    </div>
+    <div id="ticket-body" style="padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
+    <div style="position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); display:flex; align-items:center;">
+      <input type="text" id="ticket-input" placeholder="Describe your issue..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
+      <button id="ticket-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
+    </div>
+  </section>
+
   <!-- ================= CHAT KUNDLI DETAILS SHEET ================= -->
   <div class="overlay" id="overlay-chat-kundli" onclick="closeOverlayBg(event,'overlay-chat-kundli')">
     <div class="sheet" style="position:relative;">
@@ -1691,6 +1704,92 @@ body{
         });
       });
   };
+
+  // ---- Support ticket system ----
+  async function getNextTicketNumber() {
+    const counterRef = db.collection('counters').doc('supportTickets');
+    return await db.runTransaction(async (tx) => {
+      const snap = await tx.get(counterRef);
+      const next = (snap.exists ? snap.data().value : 0) + 1;
+      tx.set(counterRef, { value: next }, { merge: true });
+      return next;
+    });
+  }
+
+  window.openOrCreateSupportTicket = async function() {
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    if (!uid) { showToast('Connecting... please try again.'); return; }
+    const existing = await db.collection('supportTickets')
+      .where('raisedByUid', '==', uid).where('role', '==', 'user').where('status', '==', 'open')
+      .limit(1).get();
+    if (!existing.empty) {
+      const d = existing.docs[0];
+      openTicketChat(d.id, d.data().ticketNumber);
+      return;
+    }
+    const ticketNumber = await getNextTicketNumber();
+    const raisedByName = localStorage.getItem('aangan_user_name') || 'Guest';
+    const newTicket = await db.collection('supportTickets').add({
+      ticketNumber, role: 'user', raisedByUid: uid, raisedByName,
+      status: 'open', lastMessage: '', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    openTicketChat(newTicket.id, ticketNumber);
+  };
+
+  let ticketMsgUnsub = null;
+
+  function openTicketChat(ticketId, ticketNumber) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-ticket").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    window.currentTicketId = ticketId;
+    document.getElementById('ticket-title').textContent = 'Ticket #' + ticketNumber;
+    const body = document.getElementById('ticket-body');
+    body.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    resetDeviceScroll();
+    if (ticketMsgUnsub) ticketMsgUnsub();
+    const openedAt = Date.now();
+    ticketMsgUnsub = db.collection('supportTickets').doc(ticketId).collection('messages')
+      .orderBy('sentAt', 'asc')
+      .onSnapshot((snap) => {
+        if (snap.empty) {
+          body.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Describe your issue below to get started.</p>';
+          return;
+        }
+        body.innerHTML = '';
+        snap.forEach(d => {
+          const m = d.data();
+          const bubble = document.createElement('div');
+          const cls = m.senderType === 'user' ? 'from-me' : m.senderType === 'system' ? 'from-system' : 'from-astro';
+          bubble.className = 'u-bubble ' + cls;
+          const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
+          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}</span>`;
+          body.appendChild(bubble);
+        });
+        if (Date.now() - openedAt < 1200) { resetDeviceScroll(); }
+        else { body.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }
+      });
+  }
+
+  async function sendTicketMessage() {
+    const input = document.getElementById('ticket-input');
+    const text = input.value.trim();
+    if (!text || !window.currentTicketId) return;
+    input.value = '';
+    await db.collection('supportTickets').doc(window.currentTicketId).collection('messages').add({
+      text, senderType: 'user', sentAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('supportTickets').doc(window.currentTicketId).update({
+      lastMessage: text, lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const tSend = document.getElementById('ticket-send');
+    const tInput = document.getElementById('ticket-input');
+    if (tSend) tSend.addEventListener('click', sendTicketMessage);
+    if (tInput) tInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendTicketMessage(); });
+  });
 
   function openUserChatFromHistory(chatId) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -2220,7 +2319,7 @@ const MENU_ITEMS_1 = [
 ];
 const MENU_ITEMS_2 = [
   { icon:"gift", label:"Refer & Earn" },
-  { icon:"help", label:"Help & Support" },
+  { icon:"help", label:"Help & Support", action:"helpSupport" },
   { icon:"doc", label:"Terms & Privacy" },
   { icon:"logout", label:"Logout" },
 ];
@@ -2930,12 +3029,12 @@ function closeRemedyCategory(){
 }
 
 function renderMenus(){
-  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()" };
+  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openOrCreateSupportTicket()" };
   document.getElementById("menu-list").innerHTML = MENU_ITEMS_1.map(m => `
     <div class="menu-item" ${menuActionMap[m.action] ? `onclick="${menuActionMap[m.action]}"` : ''}><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
   `).join("");
   document.getElementById("menu-list2").innerHTML = MENU_ITEMS_2.map(m => `
-    <div class="menu-item"><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
+    <div class="menu-item" ${menuActionMap[m.action] ? `onclick="${menuActionMap[m.action]}"` : ''}><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
   `).join("");
 }
 
