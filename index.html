@@ -938,6 +938,7 @@ body{
 .u-bubble{ max-width:75%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
 .u-bubble.from-me{ align-self:flex-end; background:var(--gold); color:#2E1D0C; border-bottom-right-radius:4px; }
 .u-bubble.from-astro{ align-self:flex-start; background:var(--card-hi); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:4px; }
+.u-bubble.from-system{ align-self:center; background:rgba(62,126,113,0.15); border:1px solid var(--jade); color:var(--jade); font-size:12px; font-weight:700; text-align:center; padding:6px 14px; }
 .u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
 </style>
 </head>
@@ -1309,12 +1310,55 @@ body{
     <div id="user-chat-waiting" class="empty-state" style="text-align:center; padding:60px 20px; color:var(--ink-faint);">
       Waiting for the astrologer to accept your request...
     </div>
-    <div id="user-chat-body" style="display:none; padding:14px; display:flex; flex-direction:column; gap:8px;"></div>
+    <div id="user-chat-body" style="display:none; padding:14px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
     <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
       <input type="text" id="user-chat-input" placeholder="Type a message..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
       <button id="user-chat-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
     </div>
   </section>
+
+  <!-- ================= CHAT KUNDLI DETAILS SHEET ================= -->
+  <div class="overlay" id="overlay-chat-kundli" onclick="closeOverlayBg(event,'overlay-chat-kundli')">
+    <div class="sheet" style="position:relative;">
+      <div class="sheet-close" onclick="closeOverlay('overlay-chat-kundli')">✕</div>
+      <div class="sheet-handle"></div>
+      <h2 style="font-size:17px; color:var(--gold-text); margin:0 0 4px;">Your Details</h2>
+      <p style="font-size:12px; color:var(--ink-faint); margin:0 0 12px;">This helps the astrologer understand your chart before the chat starts.</p>
+      <div class="kundli-form">
+        <label class="k-label">Your Name</label>
+        <input class="k-input" type="text" id="ck-name" placeholder="Your name">
+        <label class="k-label">Date of Birth</label>
+        <input class="k-input" type="date" id="ck-dob">
+        <label class="k-label">Time of Birth</label>
+        <input class="k-input" type="time" id="ck-tob">
+        <label class="k-label">Place of Birth</label>
+        <input class="k-input" type="text" id="ck-pob" placeholder="e.g. Mumbai, India">
+      </div>
+
+      <label style="display:flex; align-items:center; gap:8px; margin-top:18px; font-size:13px; font-weight:700; color:var(--ink-dim);">
+        <input type="checkbox" id="ck-add-partner" onchange="document.getElementById('ck-partner-block').style.display=this.checked?'block':'none'">
+        Add partner's details too
+      </label>
+
+      <div id="ck-partner-block" style="display:none;">
+        <div class="kundli-form">
+          <label class="k-label">Partner's Name</label>
+          <input class="k-input" type="text" id="ck-p-name" placeholder="Partner's name">
+          <label class="k-label">Partner's Date of Birth</label>
+          <input class="k-input" type="date" id="ck-p-dob">
+          <label class="k-label">Partner's Time of Birth</label>
+          <input class="k-input" type="time" id="ck-p-tob">
+          <label class="k-label">Partner's Place of Birth</label>
+          <input class="k-input" type="text" id="ck-p-pob" placeholder="e.g. Delhi, India">
+        </div>
+      </div>
+
+      <p class="k-error" id="ck-error"></p>
+      <button class="banner-btn" onclick="submitChatKundliForm()" style="width:100%; margin-top:14px;">
+        <span class="blabel">Start Chat</span>
+      </button>
+    </div>
+  </div>
 
   <!-- ================= REMEDY BOOKING SHEET ================= -->
   <div class="overlay" id="overlay-remedy" onclick="closeOverlayBg(event,'overlay-remedy')">
@@ -1356,7 +1400,7 @@ body{
   // until the astrologers list is connected to Firestore for real.
   const TEST_ASTROLOGER_ID = "v0llWPrWjwawQUqbj4b4JQfDcR93";
 
-  async function sendRequestToAstrologer(type) {
+  async function sendRequestToAstrologer(type, extra) {
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if (!uid) {
       showToast('Connecting... please try again in a moment.');
@@ -1368,14 +1412,17 @@ body{
       localStorage.setItem('aangan_user_name', userName);
     }
     try {
-      const reqRef = await db.collection('requests').add({
+      const reqData = {
         astrologerId: TEST_ASTROLOGER_ID,
         userId: uid,
         userName: userName,
         status: 'pending',
         type: type,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      };
+      if (extra && extra.selfDetails) reqData.selfDetails = extra.selfDetails;
+      if (extra && extra.partnerDetails) reqData.partnerDetails = extra.partnerDetails;
+      const reqRef = await db.collection('requests').add(reqData);
       if (type === 'chat') {
         showToast('Chat request sent!');
         openUserChatWaiting(reqRef.id);
@@ -1385,6 +1432,51 @@ body{
     } catch (err) {
       showToast('Error: ' + err.message);
     }
+  }
+
+  // ---- Chat kundli-details form ----
+  function openChatKundliForm() {
+    const savedName = localStorage.getItem('aangan_user_name') || '';
+    document.getElementById('ck-name').value = savedName;
+    document.getElementById('ck-dob').value = '';
+    document.getElementById('ck-tob').value = '';
+    document.getElementById('ck-pob').value = '';
+    document.getElementById('ck-add-partner').checked = false;
+    document.getElementById('ck-partner-block').style.display = 'none';
+    document.getElementById('ck-p-name').value = '';
+    document.getElementById('ck-p-dob').value = '';
+    document.getElementById('ck-p-tob').value = '';
+    document.getElementById('ck-p-pob').value = '';
+    document.getElementById('ck-error').textContent = '';
+    document.getElementById('overlay-chat-kundli').classList.add('show');
+  }
+
+  function submitChatKundliForm() {
+    const name = document.getElementById('ck-name').value.trim();
+    const dob = document.getElementById('ck-dob').value;
+    const tob = document.getElementById('ck-tob').value;
+    const pob = document.getElementById('ck-pob').value.trim();
+
+    if (!name || !dob || !tob || !pob) {
+      document.getElementById('ck-error').textContent = 'Please fill all your details.';
+      return;
+    }
+
+    const selfDetails = { name, dob, tob, pob };
+    let partnerDetails = null;
+    if (document.getElementById('ck-add-partner').checked) {
+      const pName = document.getElementById('ck-p-name').value.trim();
+      const pDob = document.getElementById('ck-p-dob').value;
+      const pTob = document.getElementById('ck-p-tob').value;
+      const pPob = document.getElementById('ck-p-pob').value.trim();
+      if (pName || pDob || pTob || pPob) {
+        partnerDetails = { name: pName, dob: pDob, tob: pTob, pob: pPob };
+      }
+    }
+
+    if (name) localStorage.setItem('aangan_user_name', name);
+    closeOverlay('overlay-chat-kundli');
+    sendRequestToAstrologer('chat', { selfDetails, partnerDetails });
   }
 
   // ---- User-side chat screen ----
@@ -1429,12 +1521,14 @@ body{
         snap.forEach(d => {
           const m = d.data();
           const bubble = document.createElement('div');
-          bubble.className = 'u-bubble ' + (m.senderType === 'user' ? 'from-me' : 'from-astro');
+          const cls = m.senderType === 'user' ? 'from-me' : m.senderType === 'system' ? 'from-system' : 'from-astro';
+          bubble.className = 'u-bubble ' + cls;
           const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
-          bubble.innerHTML = `${m.text || ''}<span class="u-ts">${time}</span>`;
+          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}</span>`;
           body.appendChild(bubble);
         });
-        body.scrollTop = body.scrollHeight;
+        const device = document.getElementById('device');
+        device.scrollTo({ top: device.scrollHeight, behavior: 'smooth' });
       });
   }
 
@@ -2732,7 +2826,7 @@ function openDetail(id){
 
     <div class="sticky-actions">
       <button class="act-secondary banner-btn" onclick="sendRequestToAstrologer('call')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
-      <button class="act-primary banner-btn" onclick="sendRequestToAstrologer('chat')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
+      <button class="act-primary banner-btn" onclick="openChatKundliForm('${a.id}')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
     </div>
   `;
   selectedGiftId = null;
