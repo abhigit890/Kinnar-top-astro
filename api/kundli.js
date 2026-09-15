@@ -78,6 +78,27 @@ export default async function handler(req, res) {
     }
   }
 
+  if (action === "yesnotarot") {
+    const { tarot_id } = req.body;
+    if (!tarot_id) {
+      return res.status(400).json({ error: "Missing tarot_id" });
+    }
+    try {
+      const r = await fetch(`${BASE}/yes_no_tarot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept-Language": "en",
+          "x-astrologyapi-key": KEY
+        },
+        body: new URLSearchParams({ tarot_id })
+      });
+      return res.status(200).json(await r.json());
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
   if (action === "hora") {
     if (!day || !month || !year || hour === undefined || min === undefined || !lat || !lon || !tzone) {
       return res.status(400).json({ error: "Missing hora details" });
