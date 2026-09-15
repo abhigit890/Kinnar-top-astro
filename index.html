@@ -935,6 +935,10 @@ body{
   transition:opacity .25s ease, transform .25s ease; white-space:nowrap;
 }
 .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+.u-bubble{ max-width:75%; padding:10px 14px; border-radius:14px; font-size:14px; line-height:1.4; }
+.u-bubble.from-me{ align-self:flex-end; background:var(--gold); color:#2E1D0C; border-bottom-right-radius:4px; }
+.u-bubble.from-astro{ align-self:flex-start; background:var(--card-hi); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:4px; }
+.u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -1297,6 +1301,21 @@ body{
     <div id="detail-body"></div>
   </section>
 
+  <section class="screen" id="screen-chat">
+    <div class="detail-topbar">
+      <button class="back-btn" onclick="closeUserChatScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+      <span id="user-chat-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Chat</span>
+    </div>
+    <div id="user-chat-waiting" class="empty-state" style="text-align:center; padding:60px 20px; color:var(--ink-faint);">
+      Waiting for the astrologer to accept your request...
+    </div>
+    <div id="user-chat-body" style="display:none; padding:14px; display:flex; flex-direction:column; gap:8px;"></div>
+    <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
+      <input type="text" id="user-chat-input" placeholder="Type a message..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
+      <button id="user-chat-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
+    </div>
+  </section>
+
   <!-- ================= REMEDY BOOKING SHEET ================= -->
   <div class="overlay" id="overlay-remedy" onclick="closeOverlayBg(event,'overlay-remedy')">
     <div class="sheet" style="position:relative;">
@@ -1349,7 +1368,7 @@ body{
       localStorage.setItem('aangan_user_name', userName);
     }
     try {
-      await db.collection('requests').add({
+      const reqRef = await db.collection('requests').add({
         astrologerId: TEST_ASTROLOGER_ID,
         userId: uid,
         userName: userName,
@@ -1357,11 +1376,95 @@ body{
         type: type,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      showToast(type === 'chat' ? 'Chat request sent!' : 'Calling...');
+      if (type === 'chat') {
+        showToast('Chat request sent!');
+        openUserChatWaiting(reqRef.id);
+      } else {
+        showToast('Calling...');
+      }
     } catch (err) {
       showToast('Error: ' + err.message);
     }
   }
+
+  // ---- User-side chat screen ----
+  let userChatUnsubMessages = null;
+  let userChatUnsubRequest = null;
+
+  function openUserChatWaiting(requestId) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-chat").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    document.getElementById("user-chat-waiting").style.display = 'block';
+    document.getElementById("user-chat-body").style.display = 'none';
+    document.getElementById("user-chat-input-bar").style.display = 'none';
+    document.getElementById("user-chat-title").textContent = 'Chat';
+    document.getElementById("device").scrollTo({top:0, behavior:"instant"});
+
+    if (userChatUnsubRequest) userChatUnsubRequest();
+    userChatUnsubRequest = db.collection('requests').doc(requestId)
+      .onSnapshot((snap) => {
+        const r = snap.data();
+        if (r && r.status === 'accepted') {
+          openUserChatThread(requestId);
+        } else if (r && r.status === 'declined') {
+          showToast('Astrologer is not available right now.');
+          closeUserChatScreen();
+        }
+      });
+  }
+
+  function openUserChatThread(chatId) {
+    window.currentUserChatId = chatId;
+    document.getElementById("user-chat-waiting").style.display = 'none';
+    document.getElementById("user-chat-body").style.display = 'flex';
+    document.getElementById("user-chat-input-bar").style.display = 'flex';
+
+    if (userChatUnsubMessages) userChatUnsubMessages();
+    userChatUnsubMessages = db.collection('chats').doc(chatId).collection('messages')
+      .orderBy('sentAt', 'asc')
+      .onSnapshot((snap) => {
+        const body = document.getElementById('user-chat-body');
+        body.innerHTML = '';
+        snap.forEach(d => {
+          const m = d.data();
+          const bubble = document.createElement('div');
+          bubble.className = 'u-bubble ' + (m.senderType === 'user' ? 'from-me' : 'from-astro');
+          const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
+          bubble.innerHTML = `${m.text || ''}<span class="u-ts">${time}</span>`;
+          body.appendChild(bubble);
+        });
+        body.scrollTop = body.scrollHeight;
+      });
+  }
+
+  async function sendUserMessage() {
+    const input = document.getElementById('user-chat-input');
+    const text = input.value.trim();
+    if (!text || !window.currentUserChatId) return;
+    input.value = '';
+    const uid = auth.currentUser.uid;
+    await db.collection('chats').doc(window.currentUserChatId).collection('messages').add({
+      text, senderType: 'user', senderId: uid, sentAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('chats').doc(window.currentUserChatId).set({
+      lastMessage: text, lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }
+
+  function closeUserChatScreen() {
+    if (userChatUnsubMessages) { userChatUnsubMessages(); userChatUnsubMessages = null; }
+    if (userChatUnsubRequest) { userChatUnsubRequest(); userChatUnsubRequest = null; }
+    window.currentUserChatId = null;
+    closeDetailScreen();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const sendBtn = document.getElementById('user-chat-send');
+    const input = document.getElementById('user-chat-input');
+    if (sendBtn) sendBtn.addEventListener('click', sendUserMessage);
+    if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendUserMessage(); });
+  });
 </script>
 
 <script>
