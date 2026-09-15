@@ -1621,7 +1621,16 @@ body{
           const cls = m.senderType === 'user' ? 'from-me' : m.senderType === 'system' ? 'from-system' : 'from-astro';
           bubble.className = 'u-bubble ' + cls;
           const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
-          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}</span>`;
+          let ticks = '';
+          if (m.senderType === 'user') {
+            if (d.metadata.hasPendingWrites) ticks = ' 🕐';
+            else if (m.read) ticks = ' <span style="color:#2E9CDB;">✓✓</span>';
+            else if (m.delivered) ticks = ' <span style="opacity:0.65;">✓✓</span>';
+            else ticks = ' <span style="opacity:0.65;">✓</span>';
+          } else if (m.senderType === 'astrologer' && !m.read) {
+            db.collection('chats').doc(chatId).collection('messages').doc(d.id).update({ delivered: true, read: true }).catch(()=>{});
+          }
+          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}${ticks}</span>`;
           body.appendChild(bubble);
         });
         const device = document.getElementById('device');
