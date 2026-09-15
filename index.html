@@ -939,6 +939,15 @@ body{
 .u-bubble.from-me{ align-self:flex-end; background:var(--gold); color:#2E1D0C; border-bottom-right-radius:4px; }
 .u-bubble.from-astro{ align-self:flex-start; background:var(--card-hi); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:4px; }
 .u-bubble.from-system{ align-self:center; background:rgba(62,126,113,0.15); border:1px solid var(--jade); color:var(--jade); font-size:12px; font-weight:700; text-align:center; padding:6px 14px; }
+.ticket-row{
+  display:flex; justify-content:space-between; align-items:center; padding:13px 14px;
+  margin-bottom:9px; border-radius:12px; cursor:pointer;
+}
+.ticket-row .tno{ font-weight:700; font-size:13.5px; color:var(--ink); }
+.ticket-row .tprev{ font-size:11.5px; color:var(--ink-faint); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+.ticket-row .tstatus{ font-size:10px; font-weight:700; padding:3px 9px; border-radius:10px; }
+.ticket-row .tstatus.open{ background:rgba(78,149,135,0.18); color:var(--jade); }
+.ticket-row .tstatus.closed{ background:rgba(196,87,126,0.18); color:var(--rose); }
 .u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
 </style>
 </head>
@@ -1329,10 +1338,20 @@ body{
     <div id="my-chats-list" style="padding:64px 14px 40px;"></div>
   </section>
 
+  <!-- ================= SUPPORT TICKETS LIST ================= -->
+  <section class="screen" id="screen-support-list">
+    <div class="detail-topbar">
+      <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+      <span style="font-weight:700; color:var(--gold-text); margin-left:8px;">Support Chat</span>
+    </div>
+    <div id="support-tickets-list" style="padding:64px 14px 16px;"></div>
+    <button onclick="createNewTicket()" style="display:block; width:calc(100% - 28px); margin:10px 14px; padding:13px; border-radius:12px; border:none; background:var(--gold); color:#2E1D0C; font-weight:700; cursor:pointer;">+ Create New Chat</button>
+  </section>
+
   <!-- ================= SUPPORT TICKET CHAT ================= -->
   <section class="screen" id="screen-ticket">
     <div class="detail-topbar">
-      <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+      <button class="back-btn" onclick="closeDetailScreen(); openSupportList();"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
       <span id="ticket-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Ticket</span>
     </div>
     <div id="ticket-body" style="padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
@@ -1716,17 +1735,39 @@ body{
     });
   }
 
-  window.openOrCreateSupportTicket = async function() {
+  window.openSupportList = async function() {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-support-list").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    resetDeviceScroll();
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    const listEl = document.getElementById('support-tickets-list');
+    if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
+    listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    db.collection('supportTickets').where('raisedByUid', '==', uid).where('role', '==', 'user')
+      .onSnapshot((snap) => {
+        if (snap.empty) {
+          listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px; padding:30px 0;">No Ticket Available</p>';
+          return;
+        }
+        const rows = [];
+        snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => (b.ticketNumber || 0) - (a.ticketNumber || 0));
+        listEl.innerHTML = rows.map(t => `
+          <div class="ticket-row gold-card" onclick="openTicketChat('${t.id}', ${t.ticketNumber})">
+            <div>
+              <div class="tno">Ticket #${t.ticketNumber}</div>
+              <div class="tprev">${t.lastMessage || 'No messages yet'}</div>
+            </div>
+            <span class="tstatus ${t.status}">${t.status}</span>
+          </div>
+        `).join('');
+      });
+  };
+
+  window.createNewTicket = async function() {
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if (!uid) { showToast('Connecting... please try again.'); return; }
-    const existing = await db.collection('supportTickets')
-      .where('raisedByUid', '==', uid).where('role', '==', 'user').where('status', '==', 'open')
-      .limit(1).get();
-    if (!existing.empty) {
-      const d = existing.docs[0];
-      openTicketChat(d.id, d.data().ticketNumber);
-      return;
-    }
     const ticketNumber = await getNextTicketNumber();
     const raisedByName = localStorage.getItem('aangan_user_name') || 'Guest';
     const newTicket = await db.collection('supportTickets').add({
@@ -1739,7 +1780,7 @@ body{
 
   let ticketMsgUnsub = null;
 
-  function openTicketChat(ticketId, ticketNumber) {
+  window.openTicketChat = function(ticketId, ticketNumber) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-ticket").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -1770,7 +1811,7 @@ body{
         if (Date.now() - openedAt < 1200) { resetDeviceScroll(); }
         else { body.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }
       });
-  }
+  };
 
   async function sendTicketMessage() {
     const input = document.getElementById('ticket-input');
@@ -3029,7 +3070,7 @@ function closeRemedyCategory(){
 }
 
 function renderMenus(){
-  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openOrCreateSupportTicket()" };
+  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openSupportList()" };
   document.getElementById("menu-list").innerHTML = MENU_ITEMS_1.map(m => `
     <div class="menu-item" ${menuActionMap[m.action] ? `onclick="${menuActionMap[m.action]}"` : ''}><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
   `).join("");
