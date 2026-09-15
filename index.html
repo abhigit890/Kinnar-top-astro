@@ -219,8 +219,17 @@ body{
   border-bottom:1px solid var(--line);
 }
 .kundli-page{display:none; padding:0 20px 24px; box-sizing:border-box;}
+
+.tarot-slots{display:flex; gap:8px; margin:2px 0 14px;}
+.tarot-slot{flex:1; text-align:center; padding:9px 4px; border-radius:10px; border:1.5px dashed var(--line); font-size:11px; color:var(--ink-faint); font-weight:600;}
+.tarot-slot.filled{border-style:solid; border-color:var(--gold); color:var(--gold-text); background:rgba(217,169,79,0.1);}
+.tarot-grid{display:grid; grid-template-columns:repeat(9,1fr); gap:4px; margin-bottom:8px;}
+.tarot-card{aspect-ratio:2/3; border-radius:4px; background:linear-gradient(160deg,var(--gold-hi),var(--gold-deep)); border:1px solid var(--gold); display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.85); font-size:9px; cursor:pointer;}
+.tarot-card.picked{outline:2px solid var(--gold-text); outline-offset:1px;}
+.tarot-card.used{opacity:0.2; pointer-events:none;}
+.tarot-reset-btn{display:block; width:100%; margin-top:14px;}
 .kundli-page.active{display:block;}
-#kundli-result, #panchang-full{ padding-top:64px; }
+#kundli-result, #panchang-full, #tarot-screen-body{ padding-top:64px; }
 .ks-name{font-family:'Cinzel',serif; letter-spacing:.02em; font-size:17px; margin:0 0 4px; color:var(--ink);}
 .ks-place{font-size:11.5px; color:var(--ink-faint); margin:0;}
 .kundli-planets{display:flex; flex-direction:column; gap:8px;}
@@ -1172,15 +1181,7 @@ body{
     <div class="detail-topbar">
       <button class="back-btn" onclick="closeTarot()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
     </div>
-    <div style="padding:64px 20px 60px;">
-      <h1 class="greet-name" style="margin-bottom:4px;">Free Tarot</h1>
-      <p style="font-size:12.5px; color:var(--ink-faint); margin:0 0 18px;">A quick tarot reading for love, career and finance</p>
-      <div id="tarot-content"></div>
-
-      <div class="section-title" style="font-size:14px; margin:24px 0 6px;">Yes / No Tarot</div>
-      <p style="font-size:11.5px; color:var(--ink-faint); margin:0 0 12px;">Think of a question, then pull a card for your answer</p>
-      <div id="yesno-tarot-content"></div>
-    </div>
+    <div id="tarot-screen-body"></div>
   </section>
 
   <!-- ================= DAILY HOROSCOPE — RESULT ================= -->
@@ -1844,8 +1845,10 @@ function openTarot(){
   document.getElementById("screen-tarot").classList.add("active");
   document.getElementById("bottom-nav").classList.add("nav-hidden");
   document.getElementById("device").scrollTo({top:0, behavior:"instant"});
-  drawTarotCards();
-  drawYesNoTarot();
+  tarot3Picks = [];
+  tarotYNPick = null;
+  tarotActiveTab = 0;
+  renderTarotScreen();
 }
 
 function closeTarot(){
@@ -1855,13 +1858,82 @@ function closeTarot(){
   document.getElementById("device").scrollTo({top:0, behavior:"instant"});
 }
 
-async function drawTarotCards(){
-  const el = document.getElementById("tarot-content");
+// Two picking modes on one screen: pick 3 cards (Love/Career/Finance) or
+// pick 1 card (Yes/No). Cards are shown face-down — the user's choice of
+// position is what determines which card they get.
+let tarot3Picks = [];      // positions (1-78) picked, in order: love, career, finance
+let tarotYNPick = null;    // position (1-78) picked for yes/no
+let tarotActiveTab = 0;
+
+function tarotCardGrid(mode){
+  let html = '<div class="tarot-grid">';
+  for(let i = 1; i <= 78; i++){
+    html += `<div class="tarot-card" id="tarot-card-${mode}-${i}" onclick="pickTarotCard(${i}, '${mode}')">✦</div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderTarotScreen(){
+  const el = document.getElementById("tarot-screen-body");
   if(!el) return;
-  el.innerHTML = '<p style="text-align:center;padding:40px 20px;color:var(--ink-faint);">Shuffling the deck…</p>';
-  const love = Math.floor(Math.random() * 78) + 1;
-  const career = Math.floor(Math.random() * 78) + 1;
-  const finance = Math.floor(Math.random() * 78) + 1;
+  el.innerHTML = `
+    <div class="sticky-tabs-wrap">
+      <h1 class="greet-name" style="margin:0 20px 4px; padding-top:14px;">Free Tarot</h1>
+      <p style="font-size:12.5px; color:var(--ink-faint); margin:0 20px 12px;">Tap cards face-down to reveal your reading</p>
+      <div class="kundli-tabs-bar" id="tarot-tabs-bar">
+        <button class="kundli-tab-pill ${tarotActiveTab===0?'active':''}" data-idx="0" onclick="jumpToTarotTab(0)">3-Card Reading</button>
+        <button class="kundli-tab-pill ${tarotActiveTab===1?'active':''}" data-idx="1" onclick="jumpToTarotTab(1)">Yes / No</button>
+      </div>
+    </div>
+    <div>
+      <div class="kundli-page ${tarotActiveTab===0?'active':''}" data-page="0">
+        <div class="tarot-slots">
+          <div class="tarot-slot" id="tarot-slot-love">Love</div>
+          <div class="tarot-slot" id="tarot-slot-career">Career</div>
+          <div class="tarot-slot" id="tarot-slot-finance">Finance</div>
+        </div>
+        ${tarotCardGrid("3")}
+        <div id="tarot3-result"></div>
+      </div>
+      <div class="kundli-page ${tarotActiveTab===1?'active':''}" data-page="1">
+        <p style="font-size:12px; color:var(--ink-faint); margin:0 0 10px;">Think of a yes/no question, then pick one card.</p>
+        ${tarotCardGrid("yn")}
+        <div id="tarotyn-result"></div>
+      </div>
+    </div>
+  `;
+  applyStickyHeaderOffset("tarot-screen-body");
+}
+
+function jumpToTarotTab(idx){
+  tarotActiveTab = idx;
+  document.querySelectorAll("#tarot-screen-body .kundli-page").forEach(p => p.classList.toggle("active", Number(p.dataset.page) === idx));
+  document.querySelectorAll("#tarot-tabs-bar .kundli-tab-pill").forEach(b => b.classList.toggle("active", Number(b.dataset.idx) === idx));
+}
+
+function pickTarotCard(pos, mode){
+  if(mode === "3"){
+    if(tarot3Picks.includes(pos) || tarot3Picks.length >= 3) return;
+    tarot3Picks.push(pos);
+    document.getElementById(`tarot-card-3-${pos}`).classList.add("used");
+    const labels = ["love","career","finance"];
+    const slot = document.getElementById(`tarot-slot-${labels[tarot3Picks.length-1]}`);
+    slot.classList.add("filled");
+    slot.textContent = labels[tarot3Picks.length-1].charAt(0).toUpperCase() + labels[tarot3Picks.length-1].slice(1) + " ✓";
+    if(tarot3Picks.length === 3) fetchTarot3Reading();
+  } else {
+    if(tarotYNPick !== null) return;
+    tarotYNPick = pos;
+    document.getElementById(`tarot-card-yn-${pos}`).classList.add("used");
+    fetchTarotYNReading();
+  }
+}
+
+async function fetchTarot3Reading(){
+  const el = document.getElementById("tarot3-result");
+  el.innerHTML = '<p style="text-align:center;padding:20px;color:var(--ink-faint);">Revealing your cards…</p>';
+  const [love, career, finance] = tarot3Picks;
   try {
     const res = await fetch(`${BACKEND_URL}/api/kundli`, {
       method: "POST",
@@ -1870,7 +1942,7 @@ async function drawTarotCards(){
     });
     const data = await res.json();
     if(!data || !data.love){
-      el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:30px;">Could not draw a reading. Please try again.</p>';
+      el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>';
       return;
     }
     const sections = [
@@ -1885,27 +1957,31 @@ async function drawTarotCards(){
         <div class="see-more-wrap"><button class="see-more-btn" onclick="toggleReportText('tarot-${s.key}-text', this)">Read More</button></div>
       </div>
     `).join("") + `
-      <button class="banner-btn" style="display:block; width:100%; margin-top:20px;" onclick="drawTarotCards()">Draw Again</button>
+      <button class="banner-btn tarot-reset-btn" onclick="resetTarot3()">Pick New Cards</button>
     `;
+    el.scrollIntoView({ behavior:"smooth", block:"start" });
   } catch(e){
-    el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:30px;">Could not draw a reading. Please try again.</p>';
+    el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your cards. Please try again.</p>';
   }
 }
 
-async function drawYesNoTarot(){
-  const el = document.getElementById("yesno-tarot-content");
-  if(!el) return;
-  el.innerHTML = '<p style="text-align:center;padding:20px;color:var(--ink-faint);">Pulling a card…</p>';
-  const tarot_id = Math.floor(Math.random() * 78) + 1;
+function resetTarot3(){
+  tarot3Picks = [];
+  renderTarotScreen();
+}
+
+async function fetchTarotYNReading(){
+  const el = document.getElementById("tarotyn-result");
+  el.innerHTML = '<p style="text-align:center;padding:20px;color:var(--ink-faint);">Revealing your card…</p>';
   try {
     const res = await fetch(`${BACKEND_URL}/api/kundli`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "yesnotarot", tarot_id })
+      body: JSON.stringify({ action: "yesnotarot", tarot_id: tarotYNPick })
     });
     const data = await res.json();
     if(!data || !data.name){
-      el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not draw a card. Please try again.</p>';
+      el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>';
       return;
     }
     const isYes = (data.value || "").toLowerCase() === "yes";
@@ -1918,11 +1994,17 @@ async function drawYesNoTarot(){
         <p class="about-text" id="yesno-tarot-text">${data.description}</p>
         <div class="see-more-wrap"><button class="see-more-btn" onclick="toggleReportText('yesno-tarot-text', this)">Read More</button></div>
       </div>
-      <button class="banner-btn" style="display:block; width:100%; margin-top:14px;" onclick="drawYesNoTarot()">Pull Another Card</button>
+      <button class="banner-btn tarot-reset-btn" onclick="resetTarotYN()">Pick New Card</button>
     `;
+    el.scrollIntoView({ behavior:"smooth", block:"start" });
   } catch(e){
-    el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not draw a card. Please try again.</p>';
+    el.innerHTML = '<p class="k-error" style="text-align:center; margin-top:20px;">Could not read your card. Please try again.</p>';
   }
+}
+
+function resetTarotYN(){
+  tarotYNPick = null;
+  renderTarotScreen();
 }
 
 function renderMiniAstro(){
