@@ -1835,14 +1835,21 @@ body{
     if (rInput) rInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRemedyChatMessage(); });
     const rcAudio = document.getElementById('rc-audio-btn');
     const rcVideo = document.getElementById('rc-video-btn');
-    if (rcAudio) rcAudio.addEventListener('click', () => initiateRemedyCall(window.currentRemedyOrderId, false));
-    if (rcVideo) rcVideo.addEventListener('click', () => initiateRemedyCall(window.currentRemedyOrderId, true));
+    if (rcAudio) rcAudio.addEventListener('click', () => {
+      if (!window.currentRemedyOrderId) { alert('No order open — please reopen the chat.'); return; }
+      initiateRemedyCall(window.currentRemedyOrderId, false);
+    });
+    if (rcVideo) rcVideo.addEventListener('click', () => {
+      if (!window.currentRemedyOrderId) { alert('No order open — please reopen the chat.'); return; }
+      initiateRemedyCall(window.currentRemedyOrderId, true);
+    });
   });
 
   // ---- Remedy call signaling (ringing before joining Agora) ----
   let outgoingCallUnsub = null;
 
   async function initiateRemedyCall(orderId, isVideo) {
+    try {
     await db.collection('remedyOrders').doc(orderId).update({
       callInvite: { type: isVideo ? 'video' : 'audio', from: 'user', status: 'ringing' }
     });
@@ -1866,7 +1873,10 @@ body{
         document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
         document.getElementById("screen-remedy-chat").classList.add("active");
       }
-    });
+    }, (err) => { alert('Outgoing call listener error: ' + err.message); });
+    } catch (err) {
+      alert('initiateRemedyCall error: ' + err.message);
+    }
   }
 
   // ---- Incoming remedy call ring (from astrologer) ----
@@ -1912,7 +1922,7 @@ body{
             startRemedyRingSound();
           }
         });
-      });
+      }, (err) => { alert('Remedy ring listener error: ' + err.message); });
   }
 
   document.addEventListener('DOMContentLoaded', () => {
