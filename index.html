@@ -1425,6 +1425,9 @@ body{
       <button id="vc-flip-cam" style="width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
       </button>
+      <button id="vc-speaker-btn" style="display:none; width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; align-items:center; justify-content:center;">
+        <svg id="vc-speaker-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+      </button>
       <button id="vc-toggle-mic" style="width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
         <svg id="vc-mic-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
       </button>
@@ -1658,6 +1661,7 @@ body{
   let camOn = true;
 
   let activeCallOrderId = null;
+  let activeCallDocUnsub = null;
   let activeCallStartedAt = null;
 
   window.startRemedyCall = async function(orderId, isVideo) {
@@ -1668,6 +1672,7 @@ body{
     document.getElementById('vc-local-container').style.display = isVideo ? 'block' : 'none';
     document.getElementById('vc-toggle-cam').style.display = isVideo ? 'flex' : 'none';
     document.getElementById('vc-flip-cam').style.display = isVideo ? 'flex' : 'none';
+    document.getElementById('vc-speaker-btn').style.display = isVideo ? 'none' : 'flex';
     document.getElementById('vc-toggle-mic').style.display = 'flex';
     activeCallOrderId = orderId;
     activeCallStartedAt = Date.now();
@@ -1708,6 +1713,15 @@ body{
       }
 
       document.getElementById("vc-status").textContent = "Waiting for astrologer to join...";
+
+      // Watch for the other side ending the call, so this screen closes too
+      if (activeCallDocUnsub) activeCallDocUnsub();
+      activeCallDocUnsub = db.collection('remedyOrders').doc(orderId).onSnapshot((snap) => {
+        const invite = snap.data() && snap.data().callInvite;
+        if (invite && invite.status === 'call_ended') {
+          cleanupAndExitCall(false);
+        }
+      });
     } catch (err) {
       document.getElementById("vc-status").textContent = "Error: " + err.message;
     }
@@ -1745,18 +1759,46 @@ body{
       } catch (e) { /* ignore */ }
     });
     if (leaveBtn) leaveBtn.addEventListener('click', leaveVideoCall);
+
+    const speakerBtn = document.getElementById('vc-speaker-btn');
+    let speakerOn = true;
+    if (speakerBtn) speakerBtn.addEventListener('click', async () => {
+      speakerOn = !speakerOn;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const outputs = devices.filter(d => d.kind === 'audiooutput');
+        const target = speakerOn
+          ? outputs.find(d => /speaker/i.test(d.label))
+          : outputs.find(d => /ear|receiver|default/i.test(d.label));
+        const audioEl = document.querySelector('#vc-remote-container audio, #vc-remote-container video');
+        if (audioEl && target && audioEl.setSinkId) {
+          await audioEl.setSinkId(target.deviceId);
+        }
+      } catch (e) { /* not supported on this device/browser — icon still reflects the choice */ }
+      speakerBtn.style.background = speakerOn ? 'rgba(255,255,255,0.15)' : '#4E8FC4';
+    });
   });
 
-  async function leaveVideoCall() {
+  async function cleanupAndExitCall(isInitiator) {
     try {
       if (localAudioTrack) { localAudioTrack.close(); localAudioTrack = null; }
       if (localVideoTrack) { localVideoTrack.close(); localVideoTrack = null; }
       if (agoraClient) { await agoraClient.leave(); agoraClient = null; }
     } catch (e) { /* ignore */ }
+    if (activeCallDocUnsub) { activeCallDocUnsub(); activeCallDocUnsub = null; }
+
+    if (window.isGeneralCall) {
+      window.isGeneralCall = false;
+      activeCallOrderId = null;
+      activeCallStartedAt = null;
+      if (userCallWaitUnsub) { userCallWaitUnsub(); userCallWaitUnsub = null; }
+      goScreen('home');
+      return;
+    }
 
     if (outgoingCallUnsub) {
       outgoingCallUnsub(); outgoingCallUnsub = null;
-      if (window.currentRemedyOrderId) {
+      if (isInitiator && window.currentRemedyOrderId) {
         await db.collection('remedyOrders').doc(window.currentRemedyOrderId).update({ 'callInvite.status': 'ended' }).catch(()=>{});
       }
       document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
@@ -1764,14 +1806,17 @@ body{
       return;
     }
 
-    if (activeCallOrderId && activeCallStartedAt) {
-      const elapsedSec = Math.round((Date.now() - activeCallStartedAt) / 1000);
-      try {
-        await db.collection('remedyOrders').doc(activeCallOrderId).update({
-          callDurationSeconds: firebase.firestore.FieldValue.increment(elapsedSec)
-        });
-      } catch (e) { /* ignore */ }
+    if (activeCallOrderId) {
       const orderId = activeCallOrderId;
+      if (isInitiator && activeCallStartedAt) {
+        const elapsedSec = Math.round((Date.now() - activeCallStartedAt) / 1000);
+        try {
+          await db.collection('remedyOrders').doc(orderId).update({
+            callDurationSeconds: firebase.firestore.FieldValue.increment(elapsedSec),
+            'callInvite.status': 'call_ended'
+          });
+        } catch (e) { /* ignore */ }
+      }
       activeCallOrderId = null;
       activeCallStartedAt = null;
       openRemedyChat(orderId);
@@ -1781,6 +1826,10 @@ body{
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-bookings").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
+  }
+
+  async function leaveVideoCall() {
+    return cleanupAndExitCall(true);
   }
 
   // ---- Remedy Chat (shared thread between user and assigned astrologer) ----
@@ -1976,10 +2025,40 @@ body{
         openUserChatWaiting(reqRef.id);
       } else {
         showToast('Calling...');
+        openUserCallWaiting(reqRef.id, type === 'video');
       }
     } catch (err) {
       showToast('Error: ' + err.message);
     }
+  }
+
+  let userCallWaitUnsub = null;
+  function openUserCallWaiting(requestId, isVideo) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-videocall").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    document.getElementById('vc-local-container').style.display = 'none';
+    document.getElementById('vc-toggle-cam').style.display = 'none';
+    document.getElementById('vc-flip-cam').style.display = 'none';
+    document.getElementById('vc-speaker-btn').style.display = 'none';
+    document.getElementById('vc-toggle-mic').style.display = 'none';
+    document.getElementById('vc-status').textContent = 'Calling... waiting for astrologer to accept';
+    window.isGeneralCall = true;
+
+    if (userCallWaitUnsub) userCallWaitUnsub();
+    userCallWaitUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
+      const r = snap.data();
+      if (r && r.status === 'accepted') {
+        userCallWaitUnsub(); userCallWaitUnsub = null;
+        document.getElementById('vc-toggle-mic').style.display = 'flex';
+        startRemedyCall(requestId, isVideo);
+      } else if (r && r.status === 'declined') {
+        userCallWaitUnsub(); userCallWaitUnsub = null;
+        showToast('Astrologer is not available right now.');
+        window.isGeneralCall = false;
+        goScreen('home');
+      }
+    });
   }
 
   // ---- Chat kundli-details form ----
