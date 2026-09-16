@@ -1826,9 +1826,13 @@ body{
 
       // Watch for the other side ending the call, so this screen closes too
       if (activeCallDocUnsub) activeCallDocUnsub();
-      activeCallDocUnsub = db.collection('remedyOrders').doc(orderId).onSnapshot((snap) => {
-        const invite = snap.data() && snap.data().callInvite;
-        if (invite && invite.status === 'call_ended') {
+      const watchCollection = window.isGeneralCall ? 'requests' : 'remedyOrders';
+      activeCallDocUnsub = db.collection(watchCollection).doc(orderId).onSnapshot((snap) => {
+        const data = snap.data();
+        const ended = window.isGeneralCall
+          ? data && data.status === 'call_ended'
+          : data && data.callInvite && data.callInvite.status === 'call_ended';
+        if (ended) {
           cleanupAndExitCall(false);
         }
       });
@@ -1899,6 +1903,11 @@ body{
 
     if (window.isGeneralCall) {
       window.isGeneralCall = false;
+      if (isInitiator && activeCallOrderId) {
+        try {
+          await db.collection('requests').doc(activeCallOrderId).update({ status: 'call_ended' });
+        } catch (e) { /* ignore */ }
+      }
       activeCallOrderId = null;
       activeCallStartedAt = null;
       if (userCallWaitUnsub) { userCallWaitUnsub(); userCallWaitUnsub = null; }
