@@ -959,12 +959,12 @@ body{
     <div class="home-header">
       <div>
         <p class="greet-label">Hello</p>
-        <h1 class="greet-name">Anjali Ma'am</h1>
+        <h1 class="greet-name" id="greet-name">Guest</h1>
       </div>
       <div class="header-actions">
         <div class="wallet-badge">
           <svg class="svgic" viewBox="0 0 24 24" width="14" height="14"><path d="M3 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v2h-4a3 3 0 0 0 0 6h4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="15" cy="12" r=".8" fill="currentColor" stroke="none"/></svg>
-          <span class="amt">₹420</span>
+          <span class="amt" id="wallet-badge-amt">₹0</span>
         </div>
         <div class="icon-btn"><svg class="svgic" viewBox="0 0 24 24" width="19" height="19"><path d="M12 3a5 5 0 0 0-5 5v3.3c0 .9-.35 1.76-.98 2.4L4.6 15.3a1 1 0 0 0 .7 1.7h13.4a1 1 0 0 0 .7-1.7l-1.42-1.6a3.4 3.4 0 0 1-1-2.4V8a5 5 0 0 0-5-5z"/><path d="M9.5 19.5a2.5 2.5 0 0 0 5 0"/></svg><span class="dot-badge"></span></div>
       </div>
@@ -1277,15 +1277,15 @@ body{
           <div class="moon"></div>
         </div>
       </div>
-      <h2 class="profile-name">Riya Sharma</h2>
-      <p class="profile-sub">+91 98••• ••210 · Member since 2024</p>
+      <h2 class="profile-name" id="profile-name">Guest</h2>
+      <p class="profile-sub">Member since 2026</p>
     </div>
     <div class="wallet-card gold-card">
       <div>
-        <div class="amt">₹420.00</div>
+        <div class="amt" id="wallet-card-amt">₹0.00</div>
         <div class="lbl">Wallet Balance</div>
       </div>
-      <button class="add-money banner-btn sm">
+      <button class="add-money banner-btn sm" onclick="openAddMoney()">
         <span class="born"></span>
         <span class="blabel">+ Add Money</span>
       </button>
@@ -1361,7 +1361,41 @@ body{
     </div>
   </section>
 
-  <!-- ================= CHAT KUNDLI DETAILS SHEET ================= -->
+  <!-- ================= TRANSACTION HISTORY ================= -->
+  <section class="screen" id="screen-transactions">
+    <div class="detail-topbar" style="display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center;">
+        <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+        <span style="font-weight:700; color:var(--gold-text); margin-left:8px;">Transaction History</span>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:10px; color:var(--ink-faint);">Balance</div>
+        <div id="tx-balance-amt" style="font-family:'Cinzel',serif; font-weight:700; color:var(--gold-text); font-size:14px;">₹0.00</div>
+      </div>
+    </div>
+    <div id="transactions-list" style="padding:64px 14px 40px;"></div>
+  </section>
+
+  <!-- ================= MY BOOKINGS ================= -->
+  <section class="screen" id="screen-bookings">
+    <div class="detail-topbar">
+      <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+      <span style="font-weight:700; color:var(--gold-text); margin-left:8px;">My Bookings</span>
+    </div>
+    <div id="bookings-list" style="padding:64px 14px 40px;"></div>
+  </section>
+
+  <!-- ================= VIDEO CALL ================= -->
+  <section class="screen" id="screen-videocall" style="background:#0C0904;">
+    <div id="vc-remote-container" style="position:fixed; inset:0; background:#0C0904;"></div>
+    <div id="vc-local-container" style="position:fixed; bottom:100px; right:16px; width:110px; height:150px; border-radius:12px; overflow:hidden; border:2px solid var(--gold); z-index:10; background:#000;"></div>
+    <div id="vc-status" style="position:fixed; top:20px; left:0; right:0; text-align:center; color:#F5EFE2; font-size:13px; z-index:10;">Connecting...</div>
+    <div style="position:fixed; bottom:24px; left:0; right:0; display:flex; justify-content:center; gap:18px; z-index:10;">
+      <button id="vc-toggle-mic" style="width:52px; height:52px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:20px; cursor:pointer;">🎤</button>
+      <button id="vc-leave" style="width:60px; height:60px; border-radius:50%; border:none; background:#C4577E; color:#fff; font-size:22px; cursor:pointer;">📞</button>
+      <button id="vc-toggle-cam" style="width:52px; height:52px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:20px; cursor:pointer;">📷</button>
+    </div>
+  </section>
   <div class="overlay" id="overlay-chat-kundli" onclick="closeOverlayBg(event,'overlay-chat-kundli')">
     <div class="sheet" style="position:relative;">
       <div class="sheet-close" onclick="closeOverlay('overlay-chat-kundli')">✕</div>
@@ -1434,6 +1468,7 @@ body{
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyDubjcSirXbe4EJSFggYDveb4gVKUEElR0",
@@ -1461,6 +1496,197 @@ body{
       openRemedyCategory(window.currentRemedyCatId);
     }
   });
+
+  // ---- Wallet balance (live) ----
+  window.walletBalance = 0;
+  function watchWallet() {
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    if (!uid) return;
+    db.collection('users').doc(uid).onSnapshot((snap) => {
+      const balance = (snap.exists && snap.data() && snap.data().balance) || 0;
+      window.walletBalance = balance;
+      const badge = document.getElementById('wallet-badge-amt');
+      const card = document.getElementById('wallet-card-amt');
+      const txBalance = document.getElementById('tx-balance-amt');
+      if (badge) badge.textContent = '₹' + balance;
+      if (card) card.textContent = '₹' + Number(balance).toFixed(2);
+      if (txBalance) txBalance.textContent = '₹' + Number(balance).toFixed(2);
+    });
+    const savedName = localStorage.getItem('aangan_user_name');
+    if (savedName) {
+      const g = document.getElementById('greet-name');
+      const p = document.getElementById('profile-name');
+      if (g) g.textContent = savedName;
+      if (p) p.textContent = savedName;
+    }
+  }
+  auth.onAuthStateChanged((user) => { if (user) watchWallet(); });
+
+  window.openAddMoney = function() {
+    showToast('Online recharge (UPI/Card) is being set up — coming very soon!');
+  };
+
+  // ---- Transaction History ----
+  let txListUnsub = null;
+  window.openTransactionHistory = function() {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-transactions").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    resetDeviceScroll();
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    const listEl = document.getElementById('transactions-list');
+    if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
+    listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    if (txListUnsub) txListUnsub();
+    txListUnsub = db.collection('transactions').where('userId', '==', uid)
+      .onSnapshot((snap) => {
+        if (snap.empty) {
+          listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px; padding:30px 0;">No transactions yet.</p>';
+          return;
+        }
+        const rows = [];
+        snap.forEach(d => rows.push(d.data()));
+        rows.sort((a, b) => {
+          const ta = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : new Date(0);
+          const tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate() : new Date(0);
+          return tb - ta;
+        });
+        listEl.innerHTML = rows.map(t => {
+          const isCredit = t.type === 'credit';
+          const time = t.createdAt && t.createdAt.toDate ? t.createdAt.toDate().toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+          return `
+            <div class="gold-card" style="padding:13px 15px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div style="font-size:13.5px; font-weight:700; color:var(--ink);">${t.description || (isCredit ? 'Wallet Recharge' : 'Spent')}</div>
+                <div style="font-size:11px; color:var(--ink-faint); margin-top:2px;">${time}</div>
+              </div>
+              <div style="font-weight:700; font-size:14px; color:${isCredit ? 'var(--jade)' : 'var(--rose)'};">${isCredit ? '+' : '−'}₹${Number(t.amount || 0).toFixed(2)}</div>
+            </div>
+          `;
+        }).join('');
+      });
+  };
+
+  // ---- My Bookings ----
+  let bookingsUnsub = null;
+  window.openMyBookings = function() {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-bookings").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    resetDeviceScroll();
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    const listEl = document.getElementById('bookings-list');
+    if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
+    listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    if (bookingsUnsub) bookingsUnsub();
+    bookingsUnsub = db.collection('remedyOrders').where('userId', '==', uid)
+      .onSnapshot((snap) => {
+        if (snap.empty) {
+          listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px; padding:30px 0;">No bookings yet.</p>';
+          return;
+        }
+        const rows = [];
+        snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => {
+          const ta = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : new Date(0);
+          const tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate() : new Date(0);
+          return tb - ta;
+        });
+        const statusLabel = { pending: 'Pending', assigned: 'Astrologer Assigned', live: 'Live Now', completed: 'Completed' };
+        const statusColor = { pending: 'var(--dim)', assigned: 'var(--gold-text)', live: 'var(--jade)', completed: 'var(--ink-faint)' };
+        listEl.innerHTML = rows.map(o => `
+          <div class="gold-card" style="padding:14px 16px; margin-bottom:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+              <div>
+                <div style="font-size:14px; font-weight:700; color:var(--ink);">${o.remedyName || 'Remedy'}</div>
+                <div style="font-size:11.5px; color:var(--ink-faint); margin-top:3px;">${o.assignedAstrologerName ? 'Performed by ' + o.assignedAstrologerName : 'Not yet assigned'}</div>
+              </div>
+              <span style="font-size:10.5px; font-weight:700; color:${statusColor[o.callStatus] || 'var(--dim)'};">${statusLabel[o.callStatus] || 'Pending'}</span>
+            </div>
+            ${o.callStatus === 'live' ? `<button class="banner-btn sm" style="width:100%; margin-top:12px;" onclick="joinBookingCall('${o.id}')">${bannerInner('📹 Join Video Call')}</button>` : ''}
+          </div>
+        `).join('');
+      });
+  };
+
+  // ---- Agora Video Call ----
+  const AGORA_BACKEND_URL = "https://kinnar-top-astro.vercel.app";
+  let agoraClient = null;
+  let localAudioTrack = null;
+  let localVideoTrack = null;
+  let micOn = true;
+  let camOn = true;
+
+  window.joinBookingCall = async function(orderId) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-videocall").classList.add("active");
+    document.getElementById("vc-status").textContent = "Connecting...";
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+
+    try {
+      const uid = auth.currentUser ? auth.currentUser.uid : null;
+      const tokenRes = await fetch(`${AGORA_BACKEND_URL}/api/agora-token`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelName: orderId, uid: 0 })
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error || 'Could not get call token');
+
+      agoraClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+
+      agoraClient.on("user-published", async (user, mediaType) => {
+        await agoraClient.subscribe(user, mediaType);
+        document.getElementById("vc-status").textContent = "Connected";
+        if (mediaType === "video") {
+          user.videoTrack.play("vc-remote-container");
+        }
+        if (mediaType === "audio") {
+          user.audioTrack.play();
+        }
+      });
+      agoraClient.on("user-unpublished", () => {
+        document.getElementById("vc-status").textContent = "Astrologer left the call";
+      });
+
+      const joinedUid = await agoraClient.join(tokenData.appId, orderId, tokenData.token, tokenData.uid || null);
+
+      [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+      localVideoTrack.play("vc-local-container");
+      await agoraClient.publish([localAudioTrack, localVideoTrack]);
+
+      document.getElementById("vc-status").textContent = "Waiting for astrologer to join...";
+    } catch (err) {
+      document.getElementById("vc-status").textContent = "Error: " + err.message;
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const micBtn = document.getElementById('vc-toggle-mic');
+    const camBtn = document.getElementById('vc-toggle-cam');
+    const leaveBtn = document.getElementById('vc-leave');
+    if (micBtn) micBtn.addEventListener('click', async () => {
+      micOn = !micOn;
+      if (localAudioTrack) await localAudioTrack.setEnabled(micOn);
+      micBtn.style.opacity = micOn ? '1' : '0.5';
+    });
+    if (camBtn) camBtn.addEventListener('click', async () => {
+      camOn = !camOn;
+      if (localVideoTrack) await localVideoTrack.setEnabled(camOn);
+      camBtn.style.opacity = camOn ? '1' : '0.5';
+    });
+    if (leaveBtn) leaveBtn.addEventListener('click', leaveVideoCall);
+  });
+
+  async function leaveVideoCall() {
+    try {
+      if (localAudioTrack) { localAudioTrack.close(); localAudioTrack = null; }
+      if (localVideoTrack) { localVideoTrack.close(); localVideoTrack = null; }
+      if (agoraClient) { await agoraClient.leave(); agoraClient = null; }
+    } catch (e) { /* ignore */ }
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-bookings").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+  }
 
   // TEMPORARY: hardcoded test astrologer UID, used for all Call/Chat requests
   // until the astrologers list is connected to Firestore for real.
@@ -2121,6 +2347,7 @@ const ICON_PATHS = {
   giftDiamond:'<g><path d="M6 3h12l3 5-9 13L3 8l3-5z"/><path d="M3 8h18M9 3l-2 5 5 13 5-13-2-5"/><path d="M18.3 1.8 18.9 3.3 20.4 3.9 18.9 4.5 18.3 6 17.7 4.5 16.2 3.9 17.7 3.3Z" fill="currentColor" stroke="none"/></g>',
   mala:'<circle cx="6" cy="6" r="1.8"/><circle cx="10.2" cy="3.8" r="1.8"/><circle cx="14.6" cy="4.4" r="1.8"/><circle cx="18" cy="7.4" r="1.8"/><circle cx="19.2" cy="12" r="1.8"/><circle cx="17.4" cy="16.4" r="1.8"/><circle cx="13.2" cy="19" r="1.8"/><circle cx="8.6" cy="18.8" r="1.8"/><circle cx="5" cy="15.6" r="1.8"/><circle cx="3.6" cy="10.8" r="1.8"/>',
   gear:'<circle cx="12" cy="12" r="3.3"/><path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
+  wallet:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="14" r="1.3" fill="currentColor" stroke="none"/>',
 };
 function svg(name, size){
   size = size || 16;
@@ -2354,7 +2581,8 @@ function closeLanguagePicker(){
 
 const MENU_ITEMS_1 = [
   { icon:"gear", label:"Kundli Settings", action:"kundliSettings" },
-  { icon:"book", label:"My Bookings" },
+  { icon:"wallet", label:"Transaction History", action:"transactionHistory" },
+  { icon:"book", label:"My Bookings", action:"myBookings" },
   { icon:"chat", label:"Chat History", action:"chatHistory" },
   { icon:"globe", label:"App Language", action:"appLanguage" },
 ];
@@ -3070,7 +3298,7 @@ function closeRemedyCategory(){
 }
 
 function renderMenus(){
-  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openSupportList()" };
+  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openSupportList()", transactionHistory: "openTransactionHistory()", myBookings: "openMyBookings()" };
   document.getElementById("menu-list").innerHTML = MENU_ITEMS_1.map(m => `
     <div class="menu-item" ${menuActionMap[m.action] ? `onclick="${menuActionMap[m.action]}"` : ''}><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
   `).join("");
