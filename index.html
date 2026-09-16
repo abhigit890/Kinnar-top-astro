@@ -1339,6 +1339,36 @@ body{
     <div id="my-chats-list" style="padding:64px 14px 40px;"></div>
   </section>
 
+  <!-- ================= REMEDY CHAT ================= -->
+  <section class="screen" id="screen-remedy-chat">
+    <div class="detail-topbar" style="display:flex; align-items:center; justify-content:space-between;">
+      <div style="display:flex; align-items:center;">
+        <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
+        <span id="remedy-chat-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Remedy</span>
+      </div>
+      <div>
+        <span id="rc-audio-btn" style="font-size:18px; cursor:pointer; margin-right:14px;">📞</span>
+        <span id="rc-video-btn" style="font-size:18px; cursor:pointer;">🎥</span>
+      </div>
+    </div>
+    <div id="remedy-chat-body" style="padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
+    <div style="position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); display:flex; align-items:center;">
+      <input type="text" id="remedy-chat-input" placeholder="Type a message..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
+      <button id="remedy-chat-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
+    </div>
+  </section>
+
+  <!-- ================= INCOMING REMEDY CALL ================= -->
+  <div id="incoming-remedy-overlay" style="display:none; position:fixed; inset:0; background:rgba(4,2,1,0.96); z-index:110; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;">
+    <div style="width:110px; height:110px; border-radius:50%; background:rgba(217,169,79,0.15); display:flex; align-items:center; justify-content:center; font-size:44px; margin-bottom:20px;">🙏</div>
+    <div id="rc-req-type" style="color:#C9B896; font-size:13px; text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Remedy Performance Call</div>
+    <div id="rc-req-name" style="color:var(--gold-hi); font-size:22px; font-weight:700; margin-bottom:40px;">Astrologer</div>
+    <div style="display:flex; gap:24px;">
+      <div><button id="rc-req-decline" style="width:64px; height:64px; border-radius:50%; border:none; font-size:26px; background:var(--rose); color:#fff; cursor:pointer;">✕</button><div style="font-size:12px; color:#C9B896; margin-top:6px;">Decline</div></div>
+      <div><button id="rc-req-accept" style="width:64px; height:64px; border-radius:50%; border:none; font-size:26px; background:var(--jade); color:#fff; cursor:pointer;">✓</button><div style="font-size:12px; color:#C9B896; margin-top:6px;">Accept</div></div>
+    </div>
+  </div>
+
   <!-- ================= SUPPORT TICKETS LIST ================= -->
   <section class="screen" id="screen-support-list">
     <div class="detail-topbar">
@@ -1530,7 +1560,7 @@ body{
       if (p) p.textContent = savedName;
     }
   }
-  auth.onAuthStateChanged((user) => { if (user) watchWallet(); });
+  auth.onAuthStateChanged((user) => { if (user) { watchWallet(); startRemedyCallListener(user.uid); } });
 
   window.openAddMoney = function() {
     showToast('Online recharge (UPI/Card) is being set up — coming very soon!');
@@ -1602,7 +1632,7 @@ body{
           const tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate() : new Date(0);
           return tb - ta;
         });
-        const statusLabel = { pending: 'Pending', assigned: 'Astrologer Assigned', live: 'Live Now', completed: 'Completed' };
+        const statusLabel = { pending: 'Pending', assigned: 'Astrologer Assigned', live: 'In Progress', completed: 'Completed' };
         const statusColor = { pending: 'var(--dim)', assigned: 'var(--gold-text)', live: 'var(--jade)', completed: 'var(--ink-faint)' };
         listEl.innerHTML = rows.map(o => `
           <div class="gold-card" style="padding:14px 16px; margin-bottom:12px;">
@@ -1613,7 +1643,7 @@ body{
               </div>
               <span style="font-size:10.5px; font-weight:700; color:${statusColor[o.callStatus] || 'var(--dim)'};">${statusLabel[o.callStatus] || 'Pending'}</span>
             </div>
-            ${o.callStatus === 'live' ? `<button class="banner-btn sm" style="width:100%; margin-top:12px;" onclick="joinBookingCall('${o.id}')">${bannerInner('📹 Join Video Call')}</button>` : ''}
+            ${o.assignedAstrologerId ? `<button class="banner-btn sm" style="width:100%; margin-top:12px;" onclick="openRemedyChat('${o.id}')">${bannerInner('💬 Open Chat')}</button>` : ''}
           </div>
         `).join('');
       });
@@ -1627,14 +1657,22 @@ body{
   let micOn = true;
   let camOn = true;
 
-  window.joinBookingCall = async function(orderId) {
+  let activeCallOrderId = null;
+  let activeCallStartedAt = null;
+
+  window.startRemedyCall = async function(orderId, isVideo) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-videocall").classList.add("active");
     document.getElementById("vc-status").textContent = "Connecting...";
     document.getElementById("bottom-nav").classList.add("nav-hidden");
+    document.getElementById('vc-local-container').style.display = isVideo ? 'block' : 'none';
+    document.getElementById('vc-toggle-cam').style.display = isVideo ? 'flex' : 'none';
+    document.getElementById('vc-flip-cam').style.display = isVideo ? 'flex' : 'none';
+    document.getElementById('vc-toggle-mic').style.display = 'flex';
+    activeCallOrderId = orderId;
+    activeCallStartedAt = Date.now();
 
     try {
-      const uid = auth.currentUser ? auth.currentUser.uid : null;
       const tokenRes = await fetch(`${AGORA_BACKEND_URL}/api/agora-token`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelName: orderId, uid: 0 })
@@ -1658,11 +1696,16 @@ body{
         document.getElementById("vc-status").textContent = "Astrologer left the call";
       });
 
-      const joinedUid = await agoraClient.join(tokenData.appId, orderId, tokenData.token, tokenData.uid || null);
+      await agoraClient.join(tokenData.appId, orderId, tokenData.token, tokenData.uid || null);
 
-      [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-      localVideoTrack.play("vc-local-container");
-      await agoraClient.publish([localAudioTrack, localVideoTrack]);
+      if (isVideo) {
+        [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+        localVideoTrack.play("vc-local-container");
+        await agoraClient.publish([localAudioTrack, localVideoTrack]);
+      } else {
+        localAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+        await agoraClient.publish([localAudioTrack]);
+      }
 
       document.getElementById("vc-status").textContent = "Waiting for astrologer to join...";
     } catch (err) {
@@ -1710,13 +1753,189 @@ body{
       if (localVideoTrack) { localVideoTrack.close(); localVideoTrack = null; }
       if (agoraClient) { await agoraClient.leave(); agoraClient = null; }
     } catch (e) { /* ignore */ }
+
+    if (outgoingCallUnsub) {
+      outgoingCallUnsub(); outgoingCallUnsub = null;
+      if (window.currentRemedyOrderId) {
+        await db.collection('remedyOrders').doc(window.currentRemedyOrderId).update({ 'callInvite.status': 'ended' }).catch(()=>{});
+      }
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      document.getElementById("screen-remedy-chat").classList.add("active");
+      return;
+    }
+
+    if (activeCallOrderId && activeCallStartedAt) {
+      const elapsedSec = Math.round((Date.now() - activeCallStartedAt) / 1000);
+      try {
+        await db.collection('remedyOrders').doc(activeCallOrderId).update({
+          callDurationSeconds: firebase.firestore.FieldValue.increment(elapsedSec)
+        });
+      } catch (e) { /* ignore */ }
+      const orderId = activeCallOrderId;
+      activeCallOrderId = null;
+      activeCallStartedAt = null;
+      openRemedyChat(orderId);
+      return;
+    }
+
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-bookings").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
   }
 
-  // TEMPORARY: hardcoded test astrologer UID, used for all Call/Chat requests
-  // until the astrologers list is connected to Firestore for real.
+  // ---- Remedy Chat (shared thread between user and assigned astrologer) ----
+  let remedyChatUnsubMsgs = null;
+
+  window.openRemedyChat = async function(orderId) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-remedy-chat").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    window.currentRemedyOrderId = orderId;
+    document.getElementById('remedy-chat-body').innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    resetDeviceScroll();
+
+    const orderSnap = await db.collection('remedyOrders').doc(orderId).get();
+    const order = orderSnap.exists ? orderSnap.data() : {};
+    document.getElementById('remedy-chat-title').textContent = order.remedyName || 'Remedy';
+
+    if (remedyChatUnsubMsgs) remedyChatUnsubMsgs();
+    const body = document.getElementById('remedy-chat-body');
+    const openedAt = Date.now();
+    remedyChatUnsubMsgs = db.collection('remedyOrders').doc(orderId).collection('messages')
+      .orderBy('sentAt', 'asc')
+      .onSnapshot((snap) => {
+        body.innerHTML = '';
+        snap.forEach(d => {
+          const m = d.data();
+          const bubble = document.createElement('div');
+          const cls = m.senderType === 'user' ? 'from-me' : m.senderType === 'system' ? 'from-system' : 'from-astro';
+          bubble.className = 'u-bubble ' + cls;
+          const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
+          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}</span>`;
+          body.appendChild(bubble);
+        });
+        if (Date.now() - openedAt < 1200) { resetDeviceScroll(); }
+        else { body.lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }
+      });
+  };
+
+  async function sendRemedyChatMessage() {
+    const input = document.getElementById('remedy-chat-input');
+    const text = input.value.trim();
+    if (!text || !window.currentRemedyOrderId) return;
+    input.value = '';
+    await db.collection('remedyOrders').doc(window.currentRemedyOrderId).collection('messages').add({
+      text, senderType: 'user', sentAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const rSend = document.getElementById('remedy-chat-send');
+    const rInput = document.getElementById('remedy-chat-input');
+    if (rSend) rSend.addEventListener('click', sendRemedyChatMessage);
+    if (rInput) rInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendRemedyChatMessage(); });
+    const rcAudio = document.getElementById('rc-audio-btn');
+    const rcVideo = document.getElementById('rc-video-btn');
+    if (rcAudio) rcAudio.addEventListener('click', () => initiateRemedyCall(window.currentRemedyOrderId, false));
+    if (rcVideo) rcVideo.addEventListener('click', () => initiateRemedyCall(window.currentRemedyOrderId, true));
+  });
+
+  // ---- Remedy call signaling (ringing before joining Agora) ----
+  let outgoingCallUnsub = null;
+
+  async function initiateRemedyCall(orderId, isVideo) {
+    await db.collection('remedyOrders').doc(orderId).update({
+      callInvite: { type: isVideo ? 'video' : 'audio', from: 'user', status: 'ringing' }
+    });
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-videocall").classList.add("active");
+    document.getElementById('vc-local-container').style.display = 'none';
+    document.getElementById('vc-toggle-cam').style.display = 'none';
+    document.getElementById('vc-flip-cam').style.display = 'none';
+    document.getElementById('vc-toggle-mic').style.display = 'none';
+    document.getElementById('vc-status').textContent = 'Calling... waiting for astrologer to accept';
+
+    if (outgoingCallUnsub) outgoingCallUnsub();
+    outgoingCallUnsub = db.collection('remedyOrders').doc(orderId).onSnapshot((snap) => {
+      const invite = snap.data() && snap.data().callInvite;
+      if (invite && invite.status === 'accepted') {
+        outgoingCallUnsub(); outgoingCallUnsub = null;
+        document.getElementById('vc-toggle-mic').style.display = 'flex';
+        startRemedyCall(orderId, isVideo);
+      } else if (invite && invite.status === 'ended') {
+        outgoingCallUnsub(); outgoingCallUnsub = null;
+        document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+        document.getElementById("screen-remedy-chat").classList.add("active");
+      }
+    });
+  }
+
+  // ---- Incoming remedy call ring (from astrologer) ----
+  let remedyRingUnsub = null;
+  let currentIncomingRemedyOrderId = null;
+  let remedyRingInterval = null;
+
+  function startRemedyRingSound() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep() {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 740;
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.4);
+    }
+    beep();
+    remedyRingInterval = setInterval(beep, 900);
+    window.__remedyRingCtx = ctx;
+  }
+  function stopRemedyRingSound() {
+    if (remedyRingInterval) { clearInterval(remedyRingInterval); remedyRingInterval = null; }
+    if (window.__remedyRingCtx) { window.__remedyRingCtx.close(); window.__remedyRingCtx = null; }
+  }
+
+  function startRemedyCallListener(uid) {
+    remedyRingUnsub = db.collection('remedyOrders').where('userId', '==', uid)
+      .onSnapshot((snap) => {
+        if (currentIncomingRemedyOrderId) return;
+        snap.forEach(d => {
+          if (currentIncomingRemedyOrderId) return;
+          const o = d.data();
+          if (o.callInvite && o.callInvite.status === 'ringing' && o.callInvite.from === 'astrologer') {
+            currentIncomingRemedyOrderId = d.id;
+            window.currentIncomingRemedyType = o.callInvite.type;
+            document.getElementById('rc-req-type').textContent = (o.callInvite.type === 'video' ? 'Video' : 'Audio') + ' — Remedy Performance Call';
+            document.getElementById('rc-req-name').textContent = o.assignedAstrologerName || 'Astrologer';
+            document.getElementById('incoming-remedy-overlay').style.display = 'flex';
+            startRemedyRingSound();
+          }
+        });
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const rcAccept = document.getElementById('rc-req-accept');
+    const rcDecline = document.getElementById('rc-req-decline');
+    if (rcAccept) rcAccept.addEventListener('click', async () => {
+      if (!currentIncomingRemedyOrderId) return;
+      stopRemedyRingSound();
+      document.getElementById('incoming-remedy-overlay').style.display = 'none';
+      const orderId = currentIncomingRemedyOrderId;
+      const isVideo = window.currentIncomingRemedyType === 'video';
+      await db.collection('remedyOrders').doc(orderId).update({ 'callInvite.status': 'accepted' });
+      currentIncomingRemedyOrderId = null;
+      startRemedyCall(orderId, isVideo);
+    });
+    if (rcDecline) rcDecline.addEventListener('click', async () => {
+      if (!currentIncomingRemedyOrderId) return;
+      stopRemedyRingSound();
+      document.getElementById('incoming-remedy-overlay').style.display = 'none';
+      await db.collection('remedyOrders').doc(currentIncomingRemedyOrderId).update({ 'callInvite.status': 'ended' });
+      currentIncomingRemedyOrderId = null;
+    });
+  });
   const TEST_ASTROLOGER_ID = "v0llWPrWjwawQUqbj4b4JQfDcR93";
 
   async function sendRequestToAstrologer(type, extra) {
