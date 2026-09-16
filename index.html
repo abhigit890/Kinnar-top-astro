@@ -1903,6 +1903,7 @@ body{
 
     if (window.isGeneralCall) {
       window.isGeneralCall = false;
+      stopOutgoingTone();
       if (isInitiator && activeCallOrderId) {
         try {
           await db.collection('requests').doc(activeCallOrderId).update({ status: 'call_ended' });
@@ -2152,6 +2153,32 @@ body{
   }
 
   let userCallWaitUnsub = null;
+  // ---- Outgoing "calling..." tone (like a real phone dial-out) ----
+  let outgoingToneInterval = null;
+  function startOutgoingTone() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    window.__outgoingToneCtx = ctx;
+    function playBurst() {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 425; // classic outgoing ring-back tone
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+      gain.gain.setValueAtTime(0.1, ctx.currentTime + 0.95);
+      gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 1.0);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 1.0);
+    }
+    playBurst();
+    outgoingToneInterval = setInterval(playBurst, 2000); // 1s tone, 1s pause
+  }
+  function stopOutgoingTone() {
+    if (outgoingToneInterval) { clearInterval(outgoingToneInterval); outgoingToneInterval = null; }
+    if (window.__outgoingToneCtx) { window.__outgoingToneCtx.close(); window.__outgoingToneCtx = null; }
+  }
+
   function openUserCallWaiting(requestId, isVideo) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-videocall").classList.add("active");
@@ -2163,16 +2190,19 @@ body{
     document.getElementById('vc-toggle-mic').style.display = 'none';
     document.getElementById('vc-status').textContent = 'Calling... waiting for astrologer to accept';
     window.isGeneralCall = true;
+    startOutgoingTone();
 
     if (userCallWaitUnsub) userCallWaitUnsub();
     userCallWaitUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
       const r = snap.data();
       if (r && r.status === 'accepted') {
         userCallWaitUnsub(); userCallWaitUnsub = null;
+        stopOutgoingTone();
         document.getElementById('vc-toggle-mic').style.display = 'flex';
         startRemedyCall(requestId, isVideo);
       } else if (r && r.status === 'declined') {
         userCallWaitUnsub(); userCallWaitUnsub = null;
+        stopOutgoingTone();
         showToast('Astrologer is not available right now.');
         window.isGeneralCall = false;
         goScreen('home');
@@ -2201,7 +2231,8 @@ body{
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
   }
 
-  function openChatKundliForm() {
+  function openChatKundliForm(astroId, type) {
+    window.pendingKundliRequestType = type || 'chat';
     const savedName = localStorage.getItem('aangan_user_name') || '';
     document.getElementById('ck-name').value = savedName;
     renderDobRow('ck-dob');
@@ -2263,7 +2294,7 @@ body{
 
     if (name) localStorage.setItem('aangan_user_name', name);
     closeOverlay('overlay-chat-kundli');
-    sendRequestToAstrologer('chat', { selfDetails, partnerDetails });
+    sendRequestToAstrologer(window.pendingKundliRequestType || 'chat', { selfDetails, partnerDetails });
   }
 
   // ---- User-side chat screen ----
@@ -3886,8 +3917,8 @@ function openDetail(id){
     </div>
 
     <div class="sticky-actions">
-      <button class="act-secondary banner-btn" onclick="sendRequestToAstrologer('call')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
-      <button class="act-primary banner-btn" onclick="openChatKundliForm('${a.id}')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
+      <button class="act-secondary banner-btn" onclick="openChatKundliForm('${a.id}', 'call')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
+      <button class="act-primary banner-btn" onclick="openChatKundliForm('${a.id}', 'chat')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
     </div>
   `;
   selectedGiftId = null;
