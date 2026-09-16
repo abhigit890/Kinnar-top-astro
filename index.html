@@ -1358,8 +1358,13 @@ body{
       </div>
       <span id="user-end-chat-btn" style="font-size:12px; color:var(--rose); border:1px solid var(--rose); border-radius:14px; padding:5px 12px; cursor:pointer;">End Chat</span>
     </div>
-    <div id="user-chat-waiting" class="empty-state" style="text-align:center; padding:120px 20px 20px; color:var(--ink-faint);">
-      Waiting for the astrologer to accept your request...
+    <div id="user-chat-waiting" class="empty-state" style="display:none; text-align:center; padding:90px 24px 20px; color:var(--ink-faint);">
+      <div id="waiting-astro-photo-wrap" style="display:flex; justify-content:center; margin-bottom:16px;">
+        <img id="waiting-astro-photo" src="" style="display:none; width:96px; height:96px; border-radius:50%; object-fit:cover; border:2px solid var(--gold);">
+        <div id="waiting-astro-photo-empty" style="width:96px; height:96px; border-radius:50%; background:rgba(217,169,79,0.15); display:flex; align-items:center; justify-content:center; font-size:36px;">🧑‍🔮</div>
+      </div>
+      <div id="waiting-astro-name" class="display" style="font-size:18px; color:var(--ink); margin-bottom:10px;">Astrologer</div>
+      <div style="font-size:13.5px; color:var(--ink-faint);">Waiting for the astrologer to accept your request...</div>
     </div>
     <div id="user-chat-body" style="display:none; padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
     <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
@@ -2257,7 +2262,7 @@ body{
   let userChatUnsubStatus = null;
   let userChatUnsubRequest = null;
 
-  function openUserChatWaiting(requestId) {
+  async function openUserChatWaiting(requestId) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-chat").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2266,6 +2271,27 @@ body{
     document.getElementById("user-chat-input-bar").style.display = 'none';
     document.getElementById("user-chat-title").textContent = 'Chat';
     resetDeviceScroll();
+
+    // Show the astrologer's photo and name on the waiting screen
+    try {
+      const reqSnap = await db.collection('requests').doc(requestId).get();
+      const astrologerId = reqSnap.exists ? reqSnap.data().astrologerId : null;
+      if (astrologerId) {
+        const astroSnap = await db.collection('astrologers').doc(astrologerId).get();
+        if (astroSnap.exists) {
+          const a = astroSnap.data();
+          document.getElementById('waiting-astro-name').textContent = a.name || 'Astrologer';
+          if (a.profilePhoto) {
+            document.getElementById('waiting-astro-photo').src = a.profilePhoto;
+            document.getElementById('waiting-astro-photo').style.display = 'block';
+            document.getElementById('waiting-astro-photo-empty').style.display = 'none';
+          } else {
+            document.getElementById('waiting-astro-photo').style.display = 'none';
+            document.getElementById('waiting-astro-photo-empty').style.display = 'flex';
+          }
+        }
+      }
+    } catch (e) { /* ignore, fall back to default placeholder */ }
 
     if (userChatUnsubRequest) userChatUnsubRequest();
     userChatUnsubRequest = db.collection('requests').doc(requestId)
