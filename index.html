@@ -1391,10 +1391,19 @@ body{
     <div id="vc-remote-container" style="position:fixed; inset:0; background:#0C0904;"></div>
     <div id="vc-local-container" style="position:fixed; bottom:100px; right:16px; width:110px; height:150px; border-radius:12px; overflow:hidden; border:2px solid var(--gold); z-index:10; background:#000;"></div>
     <div id="vc-status" style="position:fixed; top:20px; left:0; right:0; text-align:center; color:#F5EFE2; font-size:13px; z-index:10;">Connecting...</div>
-    <div style="position:fixed; bottom:24px; left:0; right:0; display:flex; justify-content:center; gap:18px; z-index:10;">
-      <button id="vc-toggle-mic" style="width:52px; height:52px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:20px; cursor:pointer;">🎤</button>
-      <button id="vc-leave" style="width:60px; height:60px; border-radius:50%; border:none; background:#C4577E; color:#fff; font-size:22px; cursor:pointer;">📞</button>
-      <button id="vc-toggle-cam" style="width:52px; height:52px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:20px; cursor:pointer;">📷</button>
+    <div style="position:fixed; bottom:24px; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:16px; z-index:10;">
+      <button id="vc-flip-cam" style="width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+      <button id="vc-toggle-mic" style="width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg id="vc-mic-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+      </button>
+      <button id="vc-toggle-cam" style="width:56px; height:56px; border-radius:50%; border:none; background:rgba(255,255,255,0.2); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      </button>
+      <button id="vc-leave" style="width:56px; height:56px; border-radius:50%; border:none; background:#D64C6B; color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" transform="rotate(135)"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg>
+      </button>
     </div>
   </section>
   <div class="overlay" id="overlay-chat-kundli" onclick="closeOverlayBg(event,'overlay-chat-kundli')">
@@ -1665,15 +1674,32 @@ body{
     const micBtn = document.getElementById('vc-toggle-mic');
     const camBtn = document.getElementById('vc-toggle-cam');
     const leaveBtn = document.getElementById('vc-leave');
+    const flipBtn = document.getElementById('vc-flip-cam');
     if (micBtn) micBtn.addEventListener('click', async () => {
       micOn = !micOn;
       if (localAudioTrack) await localAudioTrack.setEnabled(micOn);
-      micBtn.style.opacity = micOn ? '1' : '0.5';
+      const micIcon = document.getElementById('vc-mic-icon');
+      if (micIcon) {
+        micIcon.innerHTML = micOn
+          ? '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>'
+          : '<path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="2" y1="2" x2="22" y2="22" stroke="#D64C6B"/>';
+      }
+      micBtn.style.background = micOn ? 'rgba(255,255,255,0.15)' : '#D64C6B';
     });
     if (camBtn) camBtn.addEventListener('click', async () => {
       camOn = !camOn;
       if (localVideoTrack) await localVideoTrack.setEnabled(camOn);
-      camBtn.style.opacity = camOn ? '1' : '0.5';
+      camBtn.style.background = camOn ? 'rgba(255,255,255,0.2)' : '#D64C6B';
+    });
+    if (flipBtn) flipBtn.addEventListener('click', async () => {
+      if (!localVideoTrack) return;
+      try {
+        const devices = await AgoraRTC.getCameras();
+        if (devices.length < 2) return;
+        const current = localVideoTrack.getTrackLabel ? localVideoTrack.getTrackLabel() : '';
+        const next = devices.find(d => d.label !== current) || devices[0];
+        await localVideoTrack.setDevice(next.deviceId);
+      } catch (e) { /* ignore */ }
     });
     if (leaveBtn) leaveBtn.addEventListener('click', leaveVideoCall);
   });
@@ -4932,13 +4958,20 @@ function pickRemedyAstro(id){
 async function confirmRemedy(remedyName){
   const uid = auth.currentUser ? auth.currentUser.uid : null;
   const userName = localStorage.getItem('aangan_user_name') || 'Guest';
+  const rid = window.currentRemedyOrderId || null;
+  const rInfo = (rid && window.LIVE_REMEDIES && window.LIVE_REMEDIES[rid]) || {};
   try {
     await db.collection('remedyOrders').add({
-      remedyId: window.currentRemedyOrderId || null,
+      remedyId: rid,
       remedyName,
+      remedyDesc: rInfo.desc || '',
+      remedyPrice: rInfo.price || '',
       userId: uid,
       userName,
       status: 'pending',
+      callStatus: 'pending',
+      callDurationSeconds: 0,
+      completionStatus: 'none',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast(`${remedyName} requested! We'll reach out to you shortly.`);
@@ -4951,13 +4984,19 @@ async function confirmRemedy(remedyName){
 async function buyRemedyFromChat(remedyId, remedyName){
   const uid = auth.currentUser ? auth.currentUser.uid : null;
   const userName = localStorage.getItem('aangan_user_name') || 'Guest';
+  const rInfo = (remedyId && window.LIVE_REMEDIES && window.LIVE_REMEDIES[remedyId]) || {};
   try {
     await db.collection('remedyOrders').add({
       remedyId: remedyId || null,
       remedyName,
+      remedyDesc: rInfo.desc || '',
+      remedyPrice: rInfo.price || '',
       userId: uid,
       userName,
       status: 'pending',
+      callStatus: 'pending',
+      callDurationSeconds: 0,
+      completionStatus: 'none',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast(`${remedyName} requested! We'll reach out to you shortly.`);
