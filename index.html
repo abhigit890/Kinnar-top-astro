@@ -2450,7 +2450,13 @@ body{
           } else if (m.senderType === 'astrologer' && !m.read) {
             db.collection('chats').doc(chatId).collection('messages').doc(d.id).update({ delivered: true, read: true }).catch(()=>{});
           }
-          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}${ticks}</span>`;
+          if (m.photo) {
+            bubble.innerHTML = `<img src="${m.photo}" style="width:100%; border-radius:8px;"><span class="u-ts">${time}${ticks}</span>`;
+          } else if (m.voiceNote) {
+            bubble.innerHTML = `<audio controls src="${m.voiceNote}" style="max-width:210px;"></audio><span class="u-ts">${time}${ticks}</span>`;
+          } else {
+            bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}${ticks}</span>`;
+          }
           body.appendChild(bubble);
         });
         const device = document.getElementById('device');
