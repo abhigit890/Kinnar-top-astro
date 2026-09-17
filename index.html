@@ -967,6 +967,46 @@ body{
 .ticket-row .tstatus.closed{ background:rgba(196,87,126,0.18); color:var(--rose); }
 .u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
 /* Updated request-flow UI */
+/* ================= WAITING LIST MINI BAR ================= */
+#waiting-list-mini-bar{
+  position:fixed; left:50%; bottom:68px; transform:translateX(-50%);
+  width:calc(100% - 20px); max-width:410px; min-height:52px;
+  display:none; align-items:center; gap:9px; padding:7px 8px 7px 9px;
+  z-index:89; box-sizing:border-box;
+  background:rgba(255,253,248,.97);
+  border:1px solid var(--line); border-radius:12px;
+  box-shadow:0 -3px 16px rgba(120,90,20,.13);
+  backdrop-filter:blur(16px) saturate(160%);
+  -webkit-backdrop-filter:blur(16px) saturate(160%);
+}
+#waiting-list-mini-bar .wlm-photo{
+  width:36px; height:36px; border-radius:50%; object-fit:cover; flex:0 0 36px;
+  border:1px solid var(--gold); background:rgba(217,169,79,.13);
+}
+#waiting-list-mini-bar .wlm-photo-empty{
+  width:36px; height:36px; border-radius:50%; flex:0 0 36px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(217,169,79,.13); border:1px solid var(--gold); font-size:18px;
+}
+#waiting-list-mini-bar .wlm-info{min-width:0; flex:1; line-height:1.05;}
+#waiting-list-mini-bar .wlm-name{
+  color:var(--ink); font-size:12.5px; font-weight:700; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; margin-bottom:4px;
+}
+#waiting-list-mini-bar .wlm-status{
+  color:var(--gold-text); font-size:12px; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+  font-family:'Cormorant Garamond', Georgia, serif; font-style:italic;
+  letter-spacing:.15px;
+}
+#waiting-list-mini-bar .wlm-cancel{
+  width:30px; height:30px; border:0; border-radius:50%; padding:0;
+  display:flex; align-items:center; justify-content:center; flex:0 0 30px;
+  background:rgba(160,60,55,.08); color:var(--rose); font-size:20px;
+  line-height:1; cursor:pointer;
+}
+#waiting-list-mini-bar .wlm-cancel:active{transform:scale(.94);}
+
 #screen-queue.queue-mini{
   position:fixed !important; left:0; right:0; bottom:0; top:auto !important;
   height:auto !important; min-height:0 !important; z-index:90;
@@ -1400,6 +1440,16 @@ body{
     <span class="ocb-dot"></span>
     <span class="ocb-text">Ongoing Chat — <b id="ocb-username">Astrologer</b></span>
     <span class="ocb-view" id="ocb-view-btn">View Chat</span>
+  </div>
+
+  <div id="waiting-list-mini-bar" aria-live="polite">
+    <img id="wlm-photo" class="wlm-photo" style="display:none;" alt="Astrologer">
+    <div id="wlm-photo-empty" class="wlm-photo-empty">🧑‍🔮</div>
+    <div class="wlm-info">
+      <div id="wlm-name" class="wlm-name">Astrologer</div>
+      <div class="wlm-status">You are in the waiting list</div>
+    </div>
+    <button id="wlm-cancel" class="wlm-cancel" type="button" aria-label="Cancel request">×</button>
   </div>
 
   <nav class="bottom-nav" id="bottom-nav">
@@ -2339,10 +2389,11 @@ body{
   }
 
   async function openQueueWait(requestId, type) {
-    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-    document.getElementById("screen-queue").classList.add("active", "queue-mini");
-    document.getElementById("bottom-nav").classList.add("nav-hidden");
-    resetDeviceScroll();
+    // Waiting is a small persistent bar above the existing bottom navigation.
+    // The current app screen stays visible.
+    document.getElementById("screen-queue").classList.remove("active", "queue-mini");
+    document.getElementById("bottom-nav").classList.remove("nav-hidden");
+    document.getElementById("waiting-list-mini-bar").style.display = "flex";
     window.currentQueueRequestId = requestId;
     window.currentQueueType = type;
 
@@ -2359,13 +2410,19 @@ body{
         if (astroSnap.exists) {
           const a = astroSnap.data();
           document.getElementById('queue-astro-name').textContent = a.name || 'Astrologer';
+          document.getElementById('wlm-name').textContent = a.name || 'Astrologer';
           if (a.profilePhoto) {
             document.getElementById('queue-astro-photo').src = a.profilePhoto;
+            document.getElementById('wlm-photo').src = a.profilePhoto;
+            document.getElementById('wlm-photo').style.display = 'block';
+            document.getElementById('wlm-photo-empty').style.display = 'none';
             document.getElementById('queue-astro-photo').style.display = 'block';
             document.getElementById('queue-astro-photo-empty').style.display = 'none';
           } else {
             document.getElementById('queue-astro-photo').style.display = 'none';
             document.getElementById('queue-astro-photo-empty').style.display = 'flex';
+            document.getElementById('wlm-photo').style.display = 'none';
+            document.getElementById('wlm-photo-empty').style.display = 'flex';
           }
           window.currentQueueRate = parseFloat(a.price || 0) || 0;
         }
@@ -2411,6 +2468,7 @@ body{
       if (!r) return;
 
       if (r.queueStatus === 'astrologer_accepted') {
+        document.getElementById('waiting-list-mini-bar').style.display = 'none';
         stopQueueRingSound();
         if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
 
@@ -2448,6 +2506,7 @@ body{
         }, 1000);
 
         document.getElementById('uir-start').onclick = async () => {
+          document.getElementById('waiting-list-mini-bar').style.display = 'none';
           stopQueueRingSound();
           if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
           overlay.style.display = 'none';
@@ -2469,6 +2528,7 @@ body{
         };
 
         document.getElementById('uir-reject').onclick = async () => {
+          document.getElementById('waiting-list-mini-bar').style.display = 'none';
           stopQueueRingSound();
           if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
           overlay.style.display = 'none';
@@ -2481,6 +2541,7 @@ body{
           goScreen('home');
         };
       } else if (r.queueStatus === 'declined' || r.queueStatus === 'user_declined') {
+        document.getElementById('waiting-list-mini-bar').style.display = 'none';
         stopQueueRingSound();
         if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
         document.getElementById('user-incoming-request-overlay').style.display = 'none';
@@ -2509,11 +2570,19 @@ body{
     });
     if (qCancel) qCancel.addEventListener('click', async () => {
       if (!window.currentQueueRequestId) return;
-      if (!confirm('Cancel this request?')) return;
-      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'declined_by_user', status: 'declined' });
+      document.getElementById('waiting-list-mini-bar').style.display = 'none';
+      await db.collection('requests').doc(window.currentQueueRequestId).update({
+        queueStatus: 'declined_by_user', status: 'declined',
+        userCancelledAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
       if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
       if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
-      goScreen('home');
+      window.currentQueueRequestId = null;
+      window.currentQueueType = null;
+    });
+    const wlmCancel = document.getElementById('wlm-cancel');
+    if (wlmCancel) wlmCancel.addEventListener('click', async () => {
+      if (qCancel) qCancel.click();
     });
   });
 
