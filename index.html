@@ -966,6 +966,55 @@ body{
 .ticket-row .tstatus.open{ background:rgba(78,149,135,0.18); color:var(--jade); }
 .ticket-row .tstatus.closed{ background:rgba(196,87,126,0.18); color:var(--rose); }
 .u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
+/* Updated request-flow UI */
+#screen-queue.queue-mini{
+  position:fixed !important; left:0; right:0; bottom:0; top:auto !important;
+  height:auto !important; min-height:0 !important; z-index:90;
+  background:rgba(255,253,248,.98); border-top:1px solid var(--line);
+  box-shadow:0 -8px 28px rgba(0,0,0,.12); border-radius:18px 18px 0 0;
+}
+#screen-queue.queue-mini > div{
+  min-height:0 !important; padding:12px 14px 14px !important;
+  display:grid !important; grid-template-columns:44px 1fr auto;
+  gap:10px; align-items:center;
+}
+#screen-queue.queue-mini #queue-astro-photo,
+#screen-queue.queue-mini #queue-astro-photo-empty{
+  width:44px !important; height:44px !important; font-size:22px !important;
+  margin:0 !important;
+}
+#screen-queue.queue-mini #queue-astro-name{font-size:13px !important; margin:0 0 3px !important;}
+#screen-queue.queue-mini #queue-status-text{font-size:12px !important; margin:0 !important;}
+#screen-queue.queue-mini #queue-wait-time{font-size:11px !important; margin:3px 0 0 !important;}
+#screen-queue.queue-mini #queue-ring-section{display:none !important;}
+#screen-queue.queue-mini #queue-cancel-btn{margin:0 !important; font-size:11px !important; white-space:nowrap;}
+#user-incoming-request-overlay{
+  display:none; position:fixed; inset:0; z-index:120; background:rgba(4,2,1,.96);
+  flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:28px;
+}
+#user-incoming-request-overlay .uir-avatar{
+  width:128px; height:128px; border-radius:50%; overflow:hidden; position:relative;
+  display:flex; align-items:center; justify-content:center; font-size:50px;
+  background:linear-gradient(160deg,#F3D98B,#B8860B);
+  border:2px solid var(--gold); animation:uirPulse 1.2s infinite;
+}
+#user-incoming-request-overlay .uir-avatar img{width:100%;height:100%;object-fit:cover;}
+#user-incoming-request-overlay .uir-type{margin-top:24px;color:#C9B896;font-size:12px;text-transform:uppercase;letter-spacing:1px;}
+#user-incoming-request-overlay .uir-name{margin-top:8px;color:#fff;font-size:26px;font-weight:800;font-family:'Cinzel',serif;}
+#user-incoming-request-overlay .uir-sub{margin-top:8px;color:#BDB4A5;font-size:13px;}
+#user-incoming-request-overlay .uir-start{
+  width:100%;max-width:340px;margin-top:42px;padding:17px;border:0;border-radius:40px;
+  background:linear-gradient(160deg,#4CAF6A,#2E9E55);color:#fff;font-size:18px;font-weight:700;cursor:pointer;
+}
+#user-incoming-request-overlay .uir-reject{
+  margin-top:18px;color:#D9506E;font-size:14px;font-weight:600;text-decoration:underline;cursor:pointer;
+}
+#user-incoming-request-overlay .uir-timer{margin-top:42px;color:#C9B896;font-size:13px;}
+@keyframes uirPulse{
+  0%{box-shadow:0 0 0 0 rgba(217,169,79,.5)}
+  70%{box-shadow:0 0 0 24px rgba(217,169,79,0)}
+  100%{box-shadow:0 0 0 0 rgba(217,169,79,0)}
+}
 </style>
 </head>
 <body>
@@ -2291,7 +2340,7 @@ body{
 
   async function openQueueWait(requestId, type) {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-    document.getElementById("screen-queue").classList.add("active");
+    document.getElementById("screen-queue").classList.add("active", "queue-mini");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
     resetDeviceScroll();
     window.currentQueueRequestId = requestId;
@@ -2354,29 +2403,87 @@ body{
         document.getElementById('queue-wait-time').textContent = `Estimated wait: ~${Math.max(1, Math.round(totalMin))} min`;
       });
 
-    // Listen for the astrologer picking us, or declining
+    // New request state machine:
+    // waiting -> astrologer_accepted -> user_accepted -> live/accepted
     if (queueStatusUnsub) queueStatusUnsub();
-    queueStatusUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
+    queueStatusUnsub = db.collection('requests').doc(requestId).onSnapshot(async (snap) => {
       const r = snap.data();
       if (!r) return;
-      if (r.queueStatus === 'picked') {
+
+      if (r.queueStatus === 'astrologer_accepted') {
+        stopQueueRingSound();
         if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
-        document.getElementById('queue-status-text').textContent = 'The astrologer is ready for you!';
-        document.getElementById('queue-wait-time').textContent = '';
-        document.getElementById('queue-cancel-btn').style.display = 'none';
-        document.getElementById('queue-start-btn').textContent = (type === 'chat') ? 'Start Chat' : 'Start Call';
-        document.getElementById('queue-ring-section').style.display = 'block';
-        if (!queueRingSound) startQueueRingSound();
-      } else if (r.status === 'accepted') {
+
+        const overlay = document.getElementById('user-incoming-request-overlay');
+        document.getElementById('uir-type').textContent =
+          type === 'video' ? 'Incoming Video Call' :
+          type === 'call' ? 'Incoming Audio Call' : 'Incoming Chat';
+        document.getElementById('uir-start').textContent =
+          type === 'chat' ? 'Start Chat' : 'Start Call';
+
+        try {
+          const astroId = r.astrologerId;
+          const aSnap = await db.collection('astrologers').doc(astroId).get();
+          if (aSnap.exists) {
+            const a = aSnap.data();
+            document.getElementById('uir-name').textContent = a.name || 'Astrologer';
+            if (a.profilePhoto) {
+              document.getElementById('uir-astro-photo').src = a.profilePhoto;
+              document.getElementById('uir-astro-photo').style.display = 'block';
+              document.getElementById('uir-astro-emoji').style.display = 'none';
+            }
+          }
+        } catch(e) {}
+
+        overlay.style.display = 'flex';
+        startQueueRingSound();
+
+        let seconds = 30;
+        document.getElementById('uir-timer-sec').textContent = seconds;
+        if (window.__uirTimer) clearInterval(window.__uirTimer);
+        window.__uirTimer = setInterval(() => {
+          seconds--;
+          document.getElementById('uir-timer-sec').textContent = Math.max(0, seconds);
+          if (seconds <= 0) document.getElementById('uir-reject').click();
+        }, 1000);
+
+        document.getElementById('uir-start').onclick = async () => {
+          stopQueueRingSound();
+          if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
+          overlay.style.display = 'none';
+          await db.collection('requests').doc(requestId).update({
+            queueStatus: 'user_accepted',
+            status: 'accepted',
+            userAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+          if (type === 'chat') {
+            openUserChatThread(requestId);
+          } else {
+            // The astrologer joins the Agora channel after this state change.
+            document.getElementById('vc-status').textContent = 'Connecting...';
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById('screen-videocall').classList.add('active');
+            document.getElementById('bottom-nav').classList.add('nav-hidden');
+          }
+        };
+
+        document.getElementById('uir-reject').onclick = async () => {
+          stopQueueRingSound();
+          if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
+          overlay.style.display = 'none';
+          await db.collection('requests').doc(requestId).update({
+            queueStatus: 'user_declined',
+            status: 'declined',
+            userDeclinedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+          goScreen('home');
+        };
+      } else if (r.queueStatus === 'declined' || r.queueStatus === 'user_declined') {
         stopQueueRingSound();
-        if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
-        if (type === 'chat') {
-          openUserChatThread(requestId);
-        } else {
-          startRemedyCall(requestId, type === 'video');
-        }
-      } else if (r.queueStatus === 'declined') {
-        stopQueueRingSound();
+        if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
+        document.getElementById('user-incoming-request-overlay').style.display = 'none';
         if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
         if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
         showToast('The astrologer is unable to take your request right now.');
@@ -2390,10 +2497,8 @@ body{
     const qDecline = document.getElementById('queue-decline-btn');
     const qCancel = document.getElementById('queue-cancel-btn');
     if (qStart) qStart.addEventListener('click', async () => {
-      stopQueueRingSound();
+      // Kept for backward compatibility with an older cached queue screen.
       if (!window.currentQueueRequestId) return;
-      window.isGeneralCall = window.currentQueueType !== 'chat';
-      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'confirmed_by_user' });
     });
     if (qDecline) qDecline.addEventListener('click', async () => {
       stopQueueRingSound();
@@ -2456,11 +2561,9 @@ body{
     if (userCallWaitUnsub) userCallWaitUnsub();
     userCallWaitUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
       const r = snap.data();
-      if (r && r.status === 'accepted') {
-        userCallWaitUnsub(); userCallWaitUnsub = null;
+      if (r && r.queueStatus === 'astrologer_accepted') {
+        // The shared request overlay handles the final user acceptance.
         stopOutgoingTone();
-        document.getElementById('vc-toggle-mic').style.display = 'flex';
-        startRemedyCall(requestId, isVideo);
       } else if (r && r.status === 'declined') {
         userCallWaitUnsub(); userCallWaitUnsub = null;
         stopOutgoingTone();
@@ -6030,5 +6133,18 @@ setupPlaceAutocomplete("mi-f-place", "mi-f-place-suggestions");
 applyTranslations();
 
 </script>
+<!-- USER-SIDE ASTROLOGER ACCEPTED OVERLAY -->
+<div id="user-incoming-request-overlay">
+  <div class="uir-avatar">
+    <img id="uir-astro-photo" style="display:none;">
+    <span id="uir-astro-emoji">🧑‍🔮</span>
+  </div>
+  <div class="uir-type" id="uir-type">Incoming Chat</div>
+  <div class="uir-name" id="uir-name">Astrologer</div>
+  <div class="uir-sub">Your astrologer is ready</div>
+  <button class="uir-start" id="uir-start">Start Chat</button>
+  <div class="uir-reject" id="uir-reject">Reject</div>
+  <div class="uir-timer">⏱ Remaining time: <span id="uir-timer-sec">30</span> sec</div>
+</div>
 </body>
 </html>
