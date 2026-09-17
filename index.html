@@ -1493,6 +1493,9 @@ body{
       <div class="sheet-handle"></div>
       <h2 style="font-size:17px; color:var(--gold-text); margin:0 0 4px;">Your Details</h2>
       <p style="font-size:12px; color:var(--ink-faint); margin:0 0 12px;">This helps the astrologer understand your chart before the chat starts.</p>
+      <select class="k-input" id="ck-import-select" onchange="importSavedKundliToChat(this.value)" style="margin-bottom:14px;">
+        <option value="">📥 Import a saved Kundli...</option>
+      </select>
       <div class="kundli-form">
         <label class="k-label">Your Name</label>
         <input class="k-input" type="text" id="ck-name" placeholder="Your name">
@@ -2294,6 +2297,10 @@ body{
 
   function openChatKundliForm(astroId, type) {
     window.pendingKundliRequestType = type || 'chat';
+    const savedList = getSavedKundlis();
+    const importSelect = document.getElementById('ck-import-select');
+    importSelect.innerHTML = '<option value="">📥 Import a saved Kundli...</option>' +
+      savedList.map((k, i) => `<option value="${i}">${k.name} (${k.day}/${k.month}/${k.year})</option>`).join('');
     const savedName = localStorage.getItem('aangan_user_name') || '';
     document.getElementById('ck-name').value = savedName;
     renderDobRow('ck-dob');
@@ -4325,6 +4332,26 @@ function populateSavedKundliSelects(){
     const sel = document.getElementById(id);
     if(sel) sel.innerHTML = `<option value="">Import from saved Kundli…</option>${optionsHtml}`;
   });
+}
+
+function importSavedKundliToChat(idxStr) {
+  if (idxStr === "") return;
+  const list = getSavedKundlis();
+  const k = list[Number(idxStr)];
+  if (!k) return;
+  document.getElementById('ck-name').value = k.name || '';
+  renderDobRow('ck-dob');
+  document.getElementById('ck-dob-day').value = k.day;
+  document.getElementById('ck-dob-month').value = k.month;
+  document.getElementById('ck-dob-year').value = k.year;
+  document.getElementById('ck-tob').value = `${String(k.hour).padStart(2,"0")}:${String(k.min).padStart(2,"0")}`;
+  document.getElementById('ck-pob').value = k.place || '';
+  if (k.gender) {
+    const expected = k.gender === 'male' ? 'Male' : 'Female';
+    document.getElementById('ck-gender-toggle').querySelectorAll('.style-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.gender === expected);
+    });
+  }
 }
 
 function importSavedKundli(target, idxStr){
