@@ -1747,19 +1747,75 @@ body{
         });
         const statusLabel = { pending: 'Pending', assigned: 'Astrologer Assigned', live: 'In Progress', completed: 'Completed' };
         const statusColor = { pending: 'var(--dim)', assigned: 'var(--gold-text)', live: 'var(--jade)', completed: 'var(--ink-faint)' };
-        listEl.innerHTML = rows.map(o => `
+        listEl.innerHTML = rows.map(o => {
+          const needsPurchase = o.purchaseStatus === 'pending_purchase';
+          const declined = o.purchaseStatus === 'declined';
+          const purchased = o.purchaseStatus === 'purchased' || !o.purchaseStatus; // older bookings had no purchaseStatus at all
+          return `
           <div class="gold-card" style="padding:14px 16px; margin-bottom:12px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-              <div>
-                <div style="font-size:14px; font-weight:700; color:var(--ink);">${o.remedyName || 'Remedy'}</div>
-                <div style="font-size:11.5px; color:var(--ink-faint); margin-top:3px;">${o.assignedAstrologerName ? 'Performed by ' + o.assignedAstrologerName : 'Not yet assigned'}</div>
+              <div style="display:flex; gap:10px; align-items:center;">
+                ${o.assignedAstrologerPhoto ? `<img src="${o.assignedAstrologerPhoto}" style="width:38px; height:38px; border-radius:50%; object-fit:cover;">` : ''}
+                <div>
+                  <div style="font-size:14px; font-weight:700; color:var(--ink);">${o.remedyName || 'Remedy'}</div>
+                  <div style="font-size:11.5px; color:var(--ink-faint); margin-top:3px;">${o.assignedAstrologerName ? 'Performed by ' + o.assignedAstrologerName : 'Not yet assigned'}</div>
+                </div>
               </div>
-              <span style="font-size:10.5px; font-weight:700; color:${statusColor[o.callStatus] || 'var(--dim)'};">${statusLabel[o.callStatus] || 'Pending'}</span>
+              <span style="font-size:10.5px; font-weight:700; color:${declined ? 'var(--rose)' : (statusColor[o.callStatus] || 'var(--dim)')};">${declined ? 'Declined' : (statusLabel[o.callStatus] || 'Pending')}</span>
             </div>
-            ${o.assignedAstrologerId ? `<button class="banner-btn sm" style="width:100%; margin-top:12px;" onclick="openRemedyChat('${o.id}')">${bannerInner('💬 Open Chat')}</button>` : ''}
+            ${needsPurchase ? `
+              <div style="font-size:12.5px; color:var(--gold-text); font-weight:700; margin-top:10px;">${o.remedyPrice || ''}</div>
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button style="flex:1; padding:11px; border-radius:20px; border:1px solid var(--rose); background:transparent; color:var(--rose); font-weight:700; font-size:13px; cursor:pointer;" onclick="declineRemedyBooking('${o.id}')">Decline</button>
+                <button style="flex:1; padding:11px; border-radius:20px; border:none; background:var(--gold); color:#2E1D0C; font-weight:700; font-size:13px; cursor:pointer;" onclick="buyRemedyBooking('${o.id}')">Buy</button>
+              </div>
+            ` : ''}
+            ${purchased && o.assignedAstrologerId ? `<button class="banner-btn sm" style="width:100%; margin-top:12px;" onclick="openRemedyChat('${o.id}')">${bannerInner('💬 Open Chat')}</button>` : ''}
           </div>
-        `).join('');
+        `;
+        }).join('');
       });
+  };
+
+  window.buyRemedyBooking = async function(orderId) {
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    if (!uid) return;
+    try {
+      const orderSnap = await db.collection('remedyOrders').doc(orderId).get();
+      if (!orderSnap.exists) return;
+      const o = orderSnap.data();
+      const priceNum = parseFloat((o.remedyPrice || '0').replace(/[^0-9.]/g, '')) || 0;
+
+      const userSnap = await db.collection('users').doc(uid).get();
+      const balance = userSnap.exists ? (parseFloat(userSnap.data().balance || 0) || 0) : 0;
+
+      if (balance < priceNum) {
+        showToast(`Insufficient balance. Please add ₹${(priceNum - balance).toFixed(2)} more to your wallet.`);
+        return;
+      }
+
+      await db.collection('users').doc(uid).update({
+        balance: firebase.firestore.FieldValue.increment(-priceNum)
+      });
+      await db.collection('transactions').add({
+        userId: uid, type: 'debit', amount: priceNum,
+        description: o.remedyName + ' (performed by ' + (o.assignedAstrologerName || 'Astrologer') + ')',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await db.collection('remedyOrders').doc(orderId).update({ purchaseStatus: 'purchased' });
+      showToast('Purchased! You can now open the chat.');
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
+  };
+
+  window.declineRemedyBooking = async function(orderId) {
+    if (!confirm('Decline this remedy suggestion?')) return;
+    try {
+      await db.collection('remedyOrders').doc(orderId).update({ purchaseStatus: 'declined' });
+    } catch (e) {
+      showToast('Error: ' + e.message);
+    }
   };
 
   // ---- Agora Video Call ----
