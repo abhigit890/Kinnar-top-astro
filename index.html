@@ -966,95 +966,6 @@ body{
 .ticket-row .tstatus.open{ background:rgba(78,149,135,0.18); color:var(--jade); }
 .ticket-row .tstatus.closed{ background:rgba(196,87,126,0.18); color:var(--rose); }
 .u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
-/* Updated request-flow UI */
-/* ================= WAITING LIST MINI BAR ================= */
-#waiting-list-mini-bar{
-  position:fixed; left:50%; bottom:68px; transform:translateX(-50%);
-  width:calc(100% - 20px); max-width:410px; min-height:52px;
-  display:none; align-items:center; gap:9px; padding:7px 8px 7px 9px;
-  z-index:89; box-sizing:border-box;
-  background:rgba(255,253,248,.97);
-  border:1px solid var(--line); border-radius:12px;
-  box-shadow:0 -3px 16px rgba(120,90,20,.13);
-  backdrop-filter:blur(16px) saturate(160%);
-  -webkit-backdrop-filter:blur(16px) saturate(160%);
-}
-#waiting-list-mini-bar .wlm-photo{
-  width:36px; height:36px; border-radius:50%; object-fit:cover; flex:0 0 36px;
-  border:1px solid var(--gold); background:rgba(217,169,79,.13);
-}
-#waiting-list-mini-bar .wlm-photo-empty{
-  width:36px; height:36px; border-radius:50%; flex:0 0 36px;
-  display:flex; align-items:center; justify-content:center;
-  background:rgba(217,169,79,.13); border:1px solid var(--gold); font-size:18px;
-}
-#waiting-list-mini-bar .wlm-info{min-width:0; flex:1; line-height:1.05;}
-#waiting-list-mini-bar .wlm-name{
-  color:var(--ink); font-size:12.5px; font-weight:700; white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis; margin-bottom:4px;
-}
-#waiting-list-mini-bar .wlm-status{
-  color:var(--gold-text); font-size:12px; white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis;
-  font-family:'Cormorant Garamond', Georgia, serif; font-style:italic;
-  letter-spacing:.15px;
-}
-#waiting-list-mini-bar .wlm-cancel{
-  width:30px; height:30px; border:0; border-radius:50%; padding:0;
-  display:flex; align-items:center; justify-content:center; flex:0 0 30px;
-  background:rgba(160,60,55,.08); color:var(--rose); font-size:20px;
-  line-height:1; cursor:pointer;
-}
-#waiting-list-mini-bar .wlm-cancel:active{transform:scale(.94);}
-
-#screen-queue.queue-mini{
-  position:fixed !important; left:0; right:0; bottom:0; top:auto !important;
-  height:auto !important; min-height:0 !important; z-index:90;
-  background:rgba(255,253,248,.98); border-top:1px solid var(--line);
-  box-shadow:0 -8px 28px rgba(0,0,0,.12); border-radius:18px 18px 0 0;
-}
-#screen-queue.queue-mini > div{
-  min-height:0 !important; padding:12px 14px 14px !important;
-  display:grid !important; grid-template-columns:44px 1fr auto;
-  gap:10px; align-items:center;
-}
-#screen-queue.queue-mini #queue-astro-photo,
-#screen-queue.queue-mini #queue-astro-photo-empty{
-  width:44px !important; height:44px !important; font-size:22px !important;
-  margin:0 !important;
-}
-#screen-queue.queue-mini #queue-astro-name{font-size:13px !important; margin:0 0 3px !important;}
-#screen-queue.queue-mini #queue-status-text{font-size:12px !important; margin:0 !important;}
-#screen-queue.queue-mini #queue-wait-time{font-size:11px !important; margin:3px 0 0 !important;}
-#screen-queue.queue-mini #queue-ring-section{display:none !important;}
-#screen-queue.queue-mini #queue-cancel-btn{margin:0 !important; font-size:11px !important; white-space:nowrap;}
-#user-incoming-request-overlay{
-  display:none; position:fixed; inset:0; z-index:120; background:rgba(4,2,1,.96);
-  flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:28px;
-}
-#user-incoming-request-overlay .uir-avatar{
-  width:128px; height:128px; border-radius:50%; overflow:hidden; position:relative;
-  display:flex; align-items:center; justify-content:center; font-size:50px;
-  background:linear-gradient(160deg,#F3D98B,#B8860B);
-  border:2px solid var(--gold); animation:uirPulse 1.2s infinite;
-}
-#user-incoming-request-overlay .uir-avatar img{width:100%;height:100%;object-fit:cover;}
-#user-incoming-request-overlay .uir-type{margin-top:24px;color:#C9B896;font-size:12px;text-transform:uppercase;letter-spacing:1px;}
-#user-incoming-request-overlay .uir-name{margin-top:8px;color:#fff;font-size:26px;font-weight:800;font-family:'Cinzel',serif;}
-#user-incoming-request-overlay .uir-sub{margin-top:8px;color:#BDB4A5;font-size:13px;}
-#user-incoming-request-overlay .uir-start{
-  width:100%;max-width:340px;margin-top:42px;padding:17px;border:0;border-radius:40px;
-  background:linear-gradient(160deg,#4CAF6A,#2E9E55);color:#fff;font-size:18px;font-weight:700;cursor:pointer;
-}
-#user-incoming-request-overlay .uir-reject{
-  margin-top:18px;color:#D9506E;font-size:14px;font-weight:600;text-decoration:underline;cursor:pointer;
-}
-#user-incoming-request-overlay .uir-timer{margin-top:42px;color:#C9B896;font-size:13px;}
-@keyframes uirPulse{
-  0%{box-shadow:0 0 0 0 rgba(217,169,79,.5)}
-  70%{box-shadow:0 0 0 24px rgba(217,169,79,0)}
-  100%{box-shadow:0 0 0 0 rgba(217,169,79,0)}
-}
 </style>
 </head>
 <body>
@@ -1442,16 +1353,6 @@ body{
     <span class="ocb-view" id="ocb-view-btn">View Chat</span>
   </div>
 
-  <div id="waiting-list-mini-bar" aria-live="polite">
-    <img id="wlm-photo" class="wlm-photo" style="display:none;" alt="Astrologer">
-    <div id="wlm-photo-empty" class="wlm-photo-empty">🧑‍🔮</div>
-    <div class="wlm-info">
-      <div id="wlm-name" class="wlm-name">Astrologer</div>
-      <div class="wlm-status">You are in the waiting list</div>
-    </div>
-    <button id="wlm-cancel" class="wlm-cancel" type="button" aria-label="Cancel request">×</button>
-  </div>
-
   <nav class="bottom-nav" id="bottom-nav">
     <button class="nav-btn active" data-screen="home" onclick="goScreen('home')"><span class="nic"><img class="nav-ic-img" src="data:image/webp;base64,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" alt=""></span><span data-i18n="nav_home">Home</span></button>
     <button class="nav-btn" data-screen="astro" onclick="goScreen('astro')"><span class="nic"><img class="nav-ic-img" src="data:image/webp;base64,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" alt=""></span><span data-i18n="nav_astrologers">Astrologers</span></button>
@@ -1535,6 +1436,18 @@ body{
       <div><button id="rc-req-decline" style="width:64px; height:64px; border-radius:50%; border:none; font-size:26px; background:var(--rose); color:#fff; cursor:pointer;">✕</button><div style="font-size:12px; color:#C9B896; margin-top:6px;">Decline</div></div>
       <div><button id="rc-req-accept" style="width:64px; height:64px; border-radius:50%; border:none; font-size:26px; background:var(--jade); color:#fff; cursor:pointer;">✓</button><div style="font-size:12px; color:#C9B896; margin-top:6px;">Accept</div></div>
     </div>
+  </div>
+
+  <!-- ================= USER INCOMING CHAT ACCEPTANCE ================= -->
+  <div id="user-chat-incoming-overlay" style="display:none; position:fixed; inset:0; z-index:250; background:rgba(4,2,1,.96); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px;">
+    <div style="width:110px;height:110px;border-radius:50%;overflow:hidden;border:3px solid var(--gold);background:rgba(217,169,79,.15);display:flex;align-items:center;justify-content:center;font-size:42px;margin-bottom:20px;">
+      <img id="user-incoming-astro-photo" style="display:none;width:100%;height:100%;object-fit:cover;">
+      <span id="user-incoming-astro-empty">🧑‍🔮</span>
+    </div>
+    <div style="color:var(--gold-hi);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:5px;">Incoming Chat</div>
+    <div id="user-incoming-astro-name" class="display" style="color:#F5EFE2;font-size:23px;font-weight:700;margin-bottom:38px;">Astrologer</div>
+    <button id="user-incoming-start-btn" style="width:100%;max-width:300px;padding:16px;border:0;border-radius:32px;background:linear-gradient(160deg,#4CAF6A,#2E9E55);color:#fff;font-size:17px;font-weight:700;cursor:pointer;">Start Chat</button>
+    <div id="user-incoming-reject-btn" style="margin-top:18px;color:#E08AA8;font-size:13.5px;font-weight:600;text-decoration:underline;cursor:pointer;">Reject</div>
   </div>
 
   <!-- ================= QUEUE WAITING SCREEN ================= -->
@@ -2325,6 +2238,26 @@ body{
   });
   const TEST_ASTROLOGER_ID = "v0llWPrWjwawQUqbj4b4JQfDcR93";
 
+  function showUserWaitingBar(requestId){
+    const old=document.getElementById('user-waiting-mini-bar'); if(old) old.remove();
+    const bar=document.createElement('div'); bar.id='user-waiting-mini-bar';
+    bar.style.cssText='position:fixed;left:0;right:0;bottom:64px;max-width:430px;margin:0 auto;z-index:180;padding:7px 10px;background:rgba(255,253,248,.96);border-top:1px solid var(--line);box-shadow:0 -4px 18px rgba(46,29,12,.10);display:flex;align-items:center;gap:9px;';
+    bar.innerHTML=`<img id="uwm-photo" style="width:32px;height:32px;border-radius:50%;object-fit:cover;border:1px solid var(--gold);display:none"><div id="uwm-empty" style="width:32px;height:32px;border-radius:50%;background:rgba(217,169,79,.15);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🧑‍🔮</div><div style="min-width:0;flex:1;line-height:1.15"><div id="uwm-name" style="font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Astrologer</div><div style="font-size:11px;color:var(--ink-faint);font-family:Georgia,serif;font-style:italic;margin-top:2px">You are in the waiting list</div></div><button id="uwm-cancel" aria-label="Cancel" style="width:27px;height:27px;border:1px solid var(--rose);border-radius:50%;background:transparent;color:var(--rose);font-size:17px;line-height:23px;cursor:pointer;flex-shrink:0">×</button>`;
+    document.body.appendChild(bar);
+    db.collection('requests').doc(requestId).get().then(rs=>{const aid=rs.exists?rs.data().astrologerId:null;if(!aid)return;return db.collection('astrologers').doc(aid).get();}).then(as=>{if(!as||!as.exists)return;const a=as.data();document.getElementById('uwm-name').textContent=a.name||'Astrologer';if(a.profilePhoto){document.getElementById('uwm-photo').src=a.profilePhoto;document.getElementById('uwm-photo').style.display='block';document.getElementById('uwm-empty').style.display='none';}}).catch(()=>{});
+    window.currentQueueRequestId=requestId; window.currentQueueType='chat';
+    if(queueStatusUnsub) queueStatusUnsub();
+    queueStatusUnsub=db.collection('requests').doc(requestId).onSnapshot(async snap=>{const r=snap.data();if(!r)return;
+      if(r.queueStatus==='astrologer_accepted'){
+        const aid=r.astrologerId; let a={}; try{const as=await db.collection('astrologers').doc(aid).get();if(as.exists)a=as.data();}catch(e){}
+        showUserChatIncoming(requestId,a.name||'Astrologer',a.profilePhoto||null);
+        const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();
+      } else if(r.queueStatus==='user_accepted'){ hideUserChatIncoming(); const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove(); openUserChatThread(requestId);
+      } else if(r.status==='ended'||r.status==='declined'||r.queueStatus==='user_declined'){hideUserChatIncoming();const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();}
+    });
+    document.getElementById('uwm-cancel').onclick=async()=>{if(!confirm('Cancel this chat request?'))return;await db.collection('requests').doc(requestId).update({queueStatus:'user_declined',status:'declined',cancelledBy:'user',cancelledAt:firebase.firestore.FieldValue.serverTimestamp()});const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();if(queueStatusUnsub){queueStatusUnsub();queueStatusUnsub=null;}};
+  }
+
   async function sendRequestToAstrologer(type, extra) {
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if (!uid) {
@@ -2349,7 +2282,7 @@ body{
       if (extra && extra.selfDetails) reqData.selfDetails = extra.selfDetails;
       if (extra && extra.partnerDetails) reqData.partnerDetails = extra.partnerDetails;
       const reqRef = await db.collection('requests').add(reqData);
-      openQueueWait(reqRef.id, type);
+      if (type === 'chat') showUserWaitingBar(reqRef.id); else openQueueWait(reqRef.id, type);
     } catch (err) {
       showToast('Error: ' + err.message);
     }
@@ -2388,12 +2321,23 @@ body{
     }
   }
 
+  function showUserChatIncoming(requestId, astroName, astroPhoto) {
+    const ov=document.getElementById('user-chat-incoming-overlay');
+    if(!ov) return;
+    window.currentIncomingChatRequestId=requestId;
+    document.getElementById('user-incoming-astro-name').textContent=astroName||'Astrologer';
+    const img=document.getElementById('user-incoming-astro-photo');
+    const empty=document.getElementById('user-incoming-astro-empty');
+    if(astroPhoto){img.src=astroPhoto;img.style.display='block';empty.style.display='none';}else{img.style.display='none';empty.style.display='inline';}
+    ov.style.display='flex';
+  }
+  function hideUserChatIncoming(){ const ov=document.getElementById('user-chat-incoming-overlay'); if(ov) ov.style.display='none'; }
+
   async function openQueueWait(requestId, type) {
-    // Waiting is a small persistent bar above the existing bottom navigation.
-    // The current app screen stays visible.
-    document.getElementById("screen-queue").classList.remove("active", "queue-mini");
-    document.getElementById("bottom-nav").classList.remove("nav-hidden");
-    document.getElementById("waiting-list-mini-bar").style.display = "flex";
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-queue").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    resetDeviceScroll();
     window.currentQueueRequestId = requestId;
     window.currentQueueType = type;
 
@@ -2410,19 +2354,13 @@ body{
         if (astroSnap.exists) {
           const a = astroSnap.data();
           document.getElementById('queue-astro-name').textContent = a.name || 'Astrologer';
-          document.getElementById('wlm-name').textContent = a.name || 'Astrologer';
           if (a.profilePhoto) {
             document.getElementById('queue-astro-photo').src = a.profilePhoto;
-            document.getElementById('wlm-photo').src = a.profilePhoto;
-            document.getElementById('wlm-photo').style.display = 'block';
-            document.getElementById('wlm-photo-empty').style.display = 'none';
             document.getElementById('queue-astro-photo').style.display = 'block';
             document.getElementById('queue-astro-photo-empty').style.display = 'none';
           } else {
             document.getElementById('queue-astro-photo').style.display = 'none';
             document.getElementById('queue-astro-photo-empty').style.display = 'flex';
-            document.getElementById('wlm-photo').style.display = 'none';
-            document.getElementById('wlm-photo-empty').style.display = 'flex';
           }
           window.currentQueueRate = parseFloat(a.price || 0) || 0;
         }
@@ -2460,91 +2398,29 @@ body{
         document.getElementById('queue-wait-time').textContent = `Estimated wait: ~${Math.max(1, Math.round(totalMin))} min`;
       });
 
-    // New request state machine:
-    // waiting -> astrologer_accepted -> user_accepted -> live/accepted
+    // Listen for the astrologer picking us, or declining
     if (queueStatusUnsub) queueStatusUnsub();
-    queueStatusUnsub = db.collection('requests').doc(requestId).onSnapshot(async (snap) => {
+    queueStatusUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
       const r = snap.data();
       if (!r) return;
-
-      if (r.queueStatus === 'astrologer_accepted') {
-        document.getElementById('waiting-list-mini-bar').style.display = 'none';
-        stopQueueRingSound();
+      if (r.queueStatus === 'picked') {
         if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
-
-        const overlay = document.getElementById('user-incoming-request-overlay');
-        document.getElementById('uir-type').textContent =
-          type === 'video' ? 'Incoming Video Call' :
-          type === 'call' ? 'Incoming Audio Call' : 'Incoming Chat';
-        document.getElementById('uir-start').textContent =
-          type === 'chat' ? 'Start Chat' : 'Start Call';
-
-        try {
-          const astroId = r.astrologerId;
-          const aSnap = await db.collection('astrologers').doc(astroId).get();
-          if (aSnap.exists) {
-            const a = aSnap.data();
-            document.getElementById('uir-name').textContent = a.name || 'Astrologer';
-            if (a.profilePhoto) {
-              document.getElementById('uir-astro-photo').src = a.profilePhoto;
-              document.getElementById('uir-astro-photo').style.display = 'block';
-              document.getElementById('uir-astro-emoji').style.display = 'none';
-            }
-          }
-        } catch(e) {}
-
-        overlay.style.display = 'flex';
-        startQueueRingSound();
-
-        let seconds = 30;
-        document.getElementById('uir-timer-sec').textContent = seconds;
-        if (window.__uirTimer) clearInterval(window.__uirTimer);
-        window.__uirTimer = setInterval(() => {
-          seconds--;
-          document.getElementById('uir-timer-sec').textContent = Math.max(0, seconds);
-          if (seconds <= 0) document.getElementById('uir-reject').click();
-        }, 1000);
-
-        document.getElementById('uir-start').onclick = async () => {
-          document.getElementById('waiting-list-mini-bar').style.display = 'none';
-          stopQueueRingSound();
-          if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
-          overlay.style.display = 'none';
-          await db.collection('requests').doc(requestId).update({
-            queueStatus: 'user_accepted',
-            status: 'accepted',
-            userAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
-          if (type === 'chat') {
-            openUserChatThread(requestId);
-          } else {
-            // The astrologer joins the Agora channel after this state change.
-            document.getElementById('vc-status').textContent = 'Connecting...';
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById('screen-videocall').classList.add('active');
-            document.getElementById('bottom-nav').classList.add('nav-hidden');
-          }
-        };
-
-        document.getElementById('uir-reject').onclick = async () => {
-          document.getElementById('waiting-list-mini-bar').style.display = 'none';
-          stopQueueRingSound();
-          if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
-          overlay.style.display = 'none';
-          await db.collection('requests').doc(requestId).update({
-            queueStatus: 'user_declined',
-            status: 'declined',
-            userDeclinedAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
-          if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
-          goScreen('home');
-        };
-      } else if (r.queueStatus === 'declined' || r.queueStatus === 'user_declined') {
-        document.getElementById('waiting-list-mini-bar').style.display = 'none';
+        document.getElementById('queue-status-text').textContent = 'The astrologer is ready for you!';
+        document.getElementById('queue-wait-time').textContent = '';
+        document.getElementById('queue-cancel-btn').style.display = 'none';
+        document.getElementById('queue-start-btn').textContent = (type === 'chat') ? 'Start Chat' : 'Start Call';
+        document.getElementById('queue-ring-section').style.display = 'block';
+        if (!queueRingSound) startQueueRingSound();
+      } else if (r.status === 'accepted') {
         stopQueueRingSound();
-        if (window.__uirTimer) { clearInterval(window.__uirTimer); window.__uirTimer = null; }
-        document.getElementById('user-incoming-request-overlay').style.display = 'none';
+        if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+        if (type === 'chat') {
+          openUserChatThread(requestId);
+        } else {
+          startRemedyCall(requestId, type === 'video');
+        }
+      } else if (r.queueStatus === 'declined') {
+        stopQueueRingSound();
         if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
         if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
         showToast('The astrologer is unable to take your request right now.');
@@ -2558,8 +2434,10 @@ body{
     const qDecline = document.getElementById('queue-decline-btn');
     const qCancel = document.getElementById('queue-cancel-btn');
     if (qStart) qStart.addEventListener('click', async () => {
-      // Kept for backward compatibility with an older cached queue screen.
+      stopQueueRingSound();
       if (!window.currentQueueRequestId) return;
+      window.isGeneralCall = window.currentQueueType !== 'chat';
+      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'confirmed_by_user' });
     });
     if (qDecline) qDecline.addEventListener('click', async () => {
       stopQueueRingSound();
@@ -2570,19 +2448,11 @@ body{
     });
     if (qCancel) qCancel.addEventListener('click', async () => {
       if (!window.currentQueueRequestId) return;
-      document.getElementById('waiting-list-mini-bar').style.display = 'none';
-      await db.collection('requests').doc(window.currentQueueRequestId).update({
-        queueStatus: 'declined_by_user', status: 'declined',
-        userCancelledAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      if (!confirm('Cancel this request?')) return;
+      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'declined_by_user', status: 'declined' });
       if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
       if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
-      window.currentQueueRequestId = null;
-      window.currentQueueType = null;
-    });
-    const wlmCancel = document.getElementById('wlm-cancel');
-    if (wlmCancel) wlmCancel.addEventListener('click', async () => {
-      if (qCancel) qCancel.click();
+      goScreen('home');
     });
   });
 
@@ -2630,9 +2500,11 @@ body{
     if (userCallWaitUnsub) userCallWaitUnsub();
     userCallWaitUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
       const r = snap.data();
-      if (r && r.queueStatus === 'astrologer_accepted') {
-        // The shared request overlay handles the final user acceptance.
+      if (r && r.status === 'accepted') {
+        userCallWaitUnsub(); userCallWaitUnsub = null;
         stopOutgoingTone();
+        document.getElementById('vc-toggle-mic').style.display = 'flex';
+        startRemedyCall(requestId, isVideo);
       } else if (r && r.status === 'declined') {
         userCallWaitUnsub(); userCallWaitUnsub = null;
         stopOutgoingTone();
@@ -2864,10 +2736,12 @@ body{
     if (userChatUnsubMessages) userChatUnsubMessages();
     if (userChatUnsubStatus) userChatUnsubStatus();
     userChatUnsubStatus = db.collection('chats').doc(chatId).onSnapshot((chatSnap) => {
-      const ended = chatSnap.exists && chatSnap.data() && chatSnap.data().status === 'ended';
-      document.getElementById('user-chat-input').disabled = ended;
-      document.getElementById('user-chat-send').disabled = ended;
-      document.getElementById('user-end-chat-btn').style.display = ended ? 'none' : 'block';
+      const c=chatSnap.exists?chatSnap.data():{};
+      const ended=c.status==='ended'; const active=c.status==='active'; const waiting=!active&&!ended;
+      document.getElementById('user-chat-input').disabled = !active;
+      document.getElementById('user-chat-send').disabled = !active;
+      document.getElementById('user-end-chat-btn').style.display = (active||waiting) ? 'block' : 'none';
+      if(waiting) document.getElementById('user-chat-input').placeholder='Waiting for you to accept the chat...'; else document.getElementById('user-chat-input').placeholder='Type a message...';
     });
     const threadOpenedAt = Date.now();
     userChatUnsubMessages = db.collection('chats').doc(chatId).collection('messages')
@@ -3186,15 +3060,17 @@ body{
     if (endBtn) endBtn.addEventListener('click', async () => {
       if (!window.currentUserChatId) return;
       if (!confirm('End this chat?')) return;
-      await db.collection('chats').doc(window.currentUserChatId).update({
-        status: 'ended', endedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      await db.collection('chats').doc(window.currentUserChatId).collection('messages').add({
-        text: 'This chat has been ended', senderType: 'system', sentAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      const cid=window.currentUserChatId;
+      const uname=localStorage.getItem('aangan_user_name') || 'User';
+      await db.collection('chats').doc(cid).update({status:'ended',endReason:'user',endedByType:'user',endedByName:uname,endedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      await db.collection('chats').doc(cid).collection('messages').add({text:`This chat has been ended due to ${uname}.`,senderType:'system',endReason:'user',sentAt:firebase.firestore.FieldValue.serverTimestamp()});
       window.currentUserChatId = null;
       window.currentUserChatAstroName = null;
     });
+  const uis=document.getElementById('user-incoming-start-btn');
+  const uir=document.getElementById('user-incoming-reject-btn');
+  if(uis) uis.addEventListener('click',async()=>{const rid=window.currentIncomingChatRequestId;if(!rid)return;hideUserChatIncoming();await db.collection('requests').doc(rid).update({queueStatus:'user_accepted',userAcceptedAt:firebase.firestore.FieldValue.serverTimestamp()});openUserChatThread(rid);});
+  if(uir) uir.addEventListener('click',async()=>{const rid=window.currentIncomingChatRequestId;if(!rid)return;hideUserChatIncoming();await db.collection('requests').doc(rid).update({queueStatus:'user_declined',status:'declined',declinedBy:'user',declinedAt:firebase.firestore.FieldValue.serverTimestamp()});window.currentIncomingChatRequestId=null;});
   });
 </script>
 
@@ -6202,18 +6078,5 @@ setupPlaceAutocomplete("mi-f-place", "mi-f-place-suggestions");
 applyTranslations();
 
 </script>
-<!-- USER-SIDE ASTROLOGER ACCEPTED OVERLAY -->
-<div id="user-incoming-request-overlay">
-  <div class="uir-avatar">
-    <img id="uir-astro-photo" style="display:none;">
-    <span id="uir-astro-emoji">🧑‍🔮</span>
-  </div>
-  <div class="uir-type" id="uir-type">Incoming Chat</div>
-  <div class="uir-name" id="uir-name">Astrologer</div>
-  <div class="uir-sub">Your astrologer is ready</div>
-  <button class="uir-start" id="uir-start">Start Chat</button>
-  <div class="uir-reject" id="uir-reject">Reject</div>
-  <div class="uir-timer">⏱ Remaining time: <span id="uir-timer-sec">30</span> sec</div>
-</div>
 </body>
 </html>
