@@ -1383,7 +1383,9 @@ body{
         <div id="waiting-astro-photo-empty" style="width:96px; height:96px; border-radius:50%; background:rgba(217,169,79,0.15); display:flex; align-items:center; justify-content:center; font-size:36px;">🧑‍🔮</div>
       </div>
       <div id="waiting-astro-name" class="display" style="font-size:18px; color:var(--ink); margin-bottom:10px;">Astrologer</div>
-      <div style="font-size:13.5px; color:var(--ink-faint);">Waiting for the astrologer to accept your request...</div>
+      <div id="waiting-status-text" style="font-size:13.5px; color:var(--ink-faint);">Waiting for the astrologer to accept your request...</div>
+      <div id="waiting-estimate-text" style="font-size:12px; color:var(--gold-text); margin-top:8px; font-weight:600;"></div>
+      <button id="waiting-start-btn" style="display:none; width:100%; max-width:280px; margin:28px auto 0; padding:16px; border-radius:30px; border:none; background:linear-gradient(160deg,#4CAF6A,#2E9E55); color:#fff; font-size:16px; font-weight:700; cursor:pointer;">Start Chat</button>
     </div>
     <div id="user-chat-body" style="display:none; padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
     <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
@@ -1435,6 +1437,26 @@ body{
       <div><button id="rc-req-accept" style="width:64px; height:64px; border-radius:50%; border:none; font-size:26px; background:var(--jade); color:#fff; cursor:pointer;">✓</button><div style="font-size:12px; color:#C9B896; margin-top:6px;">Accept</div></div>
     </div>
   </div>
+
+  <!-- ================= QUEUE WAITING SCREEN ================= -->
+  <section class="screen" id="screen-queue">
+    <div style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 24px 40px; min-height:100vh;">
+      <div style="display:flex; justify-content:center; margin-bottom:18px;">
+        <img id="queue-astro-photo" style="display:none; width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid var(--gold);">
+        <div id="queue-astro-photo-empty" style="width:120px; height:120px; border-radius:50%; background:rgba(217,169,79,0.15); display:flex; align-items:center; justify-content:center; font-size:46px;">🧑‍🔮</div>
+      </div>
+      <div id="queue-astro-name" class="display" style="font-size:20px; color:var(--ink); margin-bottom:8px;">Astrologer</div>
+      <div id="queue-status-text" style="font-size:13.5px; color:var(--ink-faint); margin-bottom:6px;">You are in the queue...</div>
+      <div id="queue-wait-time" style="font-size:13px; color:var(--gold-text); font-weight:700; margin-bottom:30px;"></div>
+
+      <div id="queue-ring-section" style="display:none; width:100%;">
+        <button id="queue-start-btn" style="width:100%; max-width:320px; padding:17px; border-radius:40px; border:none; background:linear-gradient(160deg, #4CAF6A, #2E9E55); color:#fff; font-size:18px; font-weight:700; cursor:pointer; box-shadow:0 10px 26px rgba(46,158,85,.3);">Start</button>
+        <div id="queue-decline-btn" style="margin-top:18px; color:var(--rose); font-size:13.5px; font-weight:600; text-decoration:underline; cursor:pointer;">Decline</div>
+      </div>
+
+      <div id="queue-cancel-btn" style="margin-top:24px; color:var(--ink-faint); font-size:12.5px; cursor:pointer;">Cancel request</div>
+    </div>
+  </section>
 
   <!-- ================= SUPPORT TICKETS LIST ================= -->
   <section class="screen" id="screen-support-list">
@@ -1488,6 +1510,7 @@ body{
     <div id="vc-remote-container" style="position:fixed; inset:0; background:#0C0904;"></div>
     <div id="vc-local-container" style="position:fixed; bottom:100px; right:16px; width:110px; height:150px; border-radius:12px; overflow:hidden; border:2px solid var(--gold); z-index:10; background:#000;"></div>
     <div id="vc-status" style="position:fixed; top:20px; left:0; right:0; text-align:center; color:#F5EFE2; font-size:13px; z-index:10;">Connecting...</div>
+    <button id="vc-start-call-btn" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:80%; max-width:280px; padding:16px; border-radius:30px; border:none; background:linear-gradient(160deg,#4CAF6A,#2E9E55); color:#fff; font-size:16px; font-weight:700; cursor:pointer; z-index:11;">Start Call</button>
     <div style="position:fixed; bottom:24px; left:0; right:0; display:flex; justify-content:center; align-items:center; gap:16px; z-index:10;">
       <button id="vc-flip-cam" style="width:48px; height:48px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
@@ -1709,6 +1732,7 @@ body{
   // ---- Transaction History ----
   let txListUnsub = null;
   window.openTransactionHistory = function() {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-transactions").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -1750,6 +1774,7 @@ body{
   // ---- My Bookings ----
   let bookingsUnsub = null;
   window.openMyBookings = function() {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-bookings").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2039,6 +2064,7 @@ body{
   let remedyChatUnsubMsgs = null;
 
   window.openRemedyChat = async function(orderId) {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-remedy-chat").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2217,23 +2243,174 @@ body{
         userId: uid,
         userName: userName,
         status: 'pending',
+        queueStatus: 'waiting',
         type: type,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       };
       if (extra && extra.selfDetails) reqData.selfDetails = extra.selfDetails;
       if (extra && extra.partnerDetails) reqData.partnerDetails = extra.partnerDetails;
       const reqRef = await db.collection('requests').add(reqData);
-      if (type === 'chat') {
-        showToast('Chat request sent!');
-        openUserChatWaiting(reqRef.id);
-      } else {
-        showToast('Calling...');
-        openUserCallWaiting(reqRef.id, type === 'video');
-      }
+      openQueueWait(reqRef.id, type);
     } catch (err) {
       showToast('Error: ' + err.message);
     }
   }
+
+  let queueEstimateUnsub = null;
+  let queueStatusUnsub = null;
+  let queueRingSound = null;
+
+  function startQueueRingSound() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    queueRingSound = ctx;
+    function playBurst() {
+      [480, 620].forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime + 1.9);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 2.0);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 2.0);
+      });
+    }
+    playBurst();
+    queueRingSound.__interval = setInterval(playBurst, 3000);
+  }
+  function stopQueueRingSound() {
+    if (queueRingSound) {
+      if (queueRingSound.__interval) clearInterval(queueRingSound.__interval);
+      queueRingSound.close();
+      queueRingSound = null;
+    }
+  }
+
+  async function openQueueWait(requestId, type) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-queue").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
+    resetDeviceScroll();
+    window.currentQueueRequestId = requestId;
+    window.currentQueueType = type;
+
+    document.getElementById('queue-ring-section').style.display = 'none';
+    document.getElementById('queue-cancel-btn').style.display = 'block';
+    document.getElementById('queue-status-text').textContent = 'You are in the queue...';
+
+    try {
+      const reqSnap = await db.collection('requests').doc(requestId).get();
+      const astrologerId = reqSnap.exists ? reqSnap.data().astrologerId : null;
+      if (astrologerId) {
+        window.currentQueueAstroId = astrologerId;
+        const astroSnap = await db.collection('astrologers').doc(astrologerId).get();
+        if (astroSnap.exists) {
+          const a = astroSnap.data();
+          document.getElementById('queue-astro-name').textContent = a.name || 'Astrologer';
+          if (a.profilePhoto) {
+            document.getElementById('queue-astro-photo').src = a.profilePhoto;
+            document.getElementById('queue-astro-photo').style.display = 'block';
+            document.getElementById('queue-astro-photo-empty').style.display = 'none';
+          } else {
+            document.getElementById('queue-astro-photo').style.display = 'none';
+            document.getElementById('queue-astro-photo-empty').style.display = 'flex';
+          }
+          window.currentQueueRate = parseFloat(a.price || 0) || 0;
+        }
+      }
+    } catch (e) { /* keep defaults */ }
+
+    // Live estimated wait time: sum of (balance / rate) for everyone ahead of us in this astrologer's queue
+    if (queueEstimateUnsub) queueEstimateUnsub();
+    const myCreatedSnap = await db.collection('requests').doc(requestId).get();
+    const myCreatedAt = myCreatedSnap.data().createdAt;
+    queueEstimateUnsub = db.collection('requests')
+      .where('astrologerId', '==', window.currentQueueAstroId)
+      .where('queueStatus', '==', 'waiting')
+      .onSnapshot(async (snap) => {
+        const ahead = [];
+        snap.forEach(d => {
+          const r = d.data();
+          if (d.id === requestId) return;
+          if (myCreatedAt && r.createdAt && r.createdAt.toMillis() < myCreatedAt.toMillis()) {
+            ahead.push(r.userId);
+          }
+        });
+        if (!ahead.length || !window.currentQueueRate) {
+          document.getElementById('queue-wait-time').textContent = ahead.length ? '' : 'You are next in line';
+          return;
+        }
+        let totalMin = 0;
+        for (const uid2 of ahead) {
+          try {
+            const uSnap = await db.collection('users').doc(uid2).get();
+            const bal = uSnap.exists ? (parseFloat(uSnap.data().balance || 0) || 0) : 0;
+            totalMin += bal / window.currentQueueRate;
+          } catch (e) { /* skip */ }
+        }
+        document.getElementById('queue-wait-time').textContent = `Estimated wait: ~${Math.max(1, Math.round(totalMin))} min`;
+      });
+
+    // Listen for the astrologer picking us, or declining
+    if (queueStatusUnsub) queueStatusUnsub();
+    queueStatusUnsub = db.collection('requests').doc(requestId).onSnapshot((snap) => {
+      const r = snap.data();
+      if (!r) return;
+      if (r.queueStatus === 'picked') {
+        if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
+        document.getElementById('queue-status-text').textContent = 'The astrologer is ready for you!';
+        document.getElementById('queue-wait-time').textContent = '';
+        document.getElementById('queue-cancel-btn').style.display = 'none';
+        document.getElementById('queue-start-btn').textContent = (type === 'chat') ? 'Start Chat' : 'Start Call';
+        document.getElementById('queue-ring-section').style.display = 'block';
+        if (!queueRingSound) startQueueRingSound();
+      } else if (r.status === 'accepted') {
+        stopQueueRingSound();
+        if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+        if (type === 'chat') {
+          openUserChatThread(requestId);
+        } else {
+          startRemedyCall(requestId, type === 'video');
+        }
+      } else if (r.queueStatus === 'declined') {
+        stopQueueRingSound();
+        if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+        if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
+        showToast('The astrologer is unable to take your request right now.');
+        goScreen('home');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const qStart = document.getElementById('queue-start-btn');
+    const qDecline = document.getElementById('queue-decline-btn');
+    const qCancel = document.getElementById('queue-cancel-btn');
+    if (qStart) qStart.addEventListener('click', async () => {
+      stopQueueRingSound();
+      if (!window.currentQueueRequestId) return;
+      window.isGeneralCall = window.currentQueueType !== 'chat';
+      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'confirmed_by_user' });
+    });
+    if (qDecline) qDecline.addEventListener('click', async () => {
+      stopQueueRingSound();
+      if (!window.currentQueueRequestId) return;
+      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'declined_by_user', status: 'declined' });
+      if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+      goScreen('home');
+    });
+    if (qCancel) qCancel.addEventListener('click', async () => {
+      if (!window.currentQueueRequestId) return;
+      if (!confirm('Cancel this request?')) return;
+      await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'declined_by_user', status: 'declined' });
+      if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+      if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
+      goScreen('home');
+    });
+  });
 
   let userCallWaitUnsub = null;
   // ---- Outgoing "calling..." tone (like a real phone dial-out) ----
@@ -2263,6 +2440,7 @@ body{
   }
 
   function openUserCallWaiting(requestId, isVideo) {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-videocall").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2390,6 +2568,7 @@ body{
   let userChatUnsubRequest = null;
 
   async function openUserChatWaiting(requestId) {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-chat").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2420,13 +2599,45 @@ body{
       }
     } catch (e) { /* ignore, fall back to default placeholder */ }
 
+    // Estimated wait time: queue position ahead of us, ~8 min per person, +8 if astrologer is currently busy
+    try {
+      const reqSnap2 = await db.collection('requests').doc(requestId).get();
+      const astroId2 = reqSnap2.exists ? reqSnap2.data().astrologerId : null;
+      const myCreatedAt = reqSnap2.exists ? reqSnap2.data().createdAt : null;
+      if (astroId2 && myCreatedAt) {
+        const [pendingSnap, busySnap] = await Promise.all([
+          db.collection('requests').where('astrologerId', '==', astroId2).where('status', '==', 'pending').get(),
+          db.collection('chats').where('astrologerId', '==', astroId2).where('status', '!=', 'ended').limit(1).get()
+        ]);
+        let ahead = 0;
+        pendingSnap.forEach(d => {
+          if (d.id !== requestId && d.data().createdAt && d.data().createdAt.toMillis() < myCreatedAt.toMillis()) ahead++;
+        });
+        const busyExtra = busySnap.empty ? 0 : 1;
+        const estMin = (ahead + busyExtra) * 8;
+        document.getElementById('waiting-estimate-text').textContent = estMin > 0 ? `Estimated wait: ~${estMin} min` : 'You are next!';
+      }
+    } catch (e) { /* ignore */ }
+
+    document.getElementById('waiting-status-text').textContent = 'Waiting for the astrologer to accept your request...';
+    document.getElementById('waiting-start-btn').style.display = 'none';
+
     if (userChatUnsubRequest) userChatUnsubRequest();
     userChatUnsubRequest = db.collection('requests').doc(requestId)
       .onSnapshot((snap) => {
         const r = snap.data();
         if (r && r.status === 'accepted') {
-          openUserChatThread(requestId);
+          document.getElementById('waiting-status-text').textContent = 'Your astrologer is ready!';
+          document.getElementById('waiting-estimate-text').textContent = '';
+          document.getElementById('waiting-start-btn').style.display = 'block';
+          document.getElementById('waiting-start-btn').onclick = () => {
+            stopRemedyRingSound();
+            userChatUnsubRequest();
+            openUserChatThread(requestId);
+          };
+          startRemedyRingSound();
         } else if (r && r.status === 'declined') {
+          stopRemedyRingSound();
           showToast('Astrologer is not available right now.');
           closeUserChatScreen();
         }
@@ -2464,6 +2675,7 @@ body{
     document.getElementById("user-chat-waiting").style.display = 'none';
     document.getElementById("user-chat-body").style.display = 'flex';
     document.getElementById("user-chat-input-bar").style.display = 'flex';
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     resetDeviceScroll();
 
     db.collection('chats').doc(chatId).get().then(chatSnap => {
@@ -2567,6 +2779,7 @@ body{
 
   // ---- My Chats (history) list ----
   window.openUserChatsList = function() {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-my-chats").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2610,6 +2823,7 @@ body{
   }
 
   window.openSupportList = async function() {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-support-list").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2655,6 +2869,7 @@ body{
   let ticketMsgUnsub = null;
 
   window.openTicketChat = function(ticketId, ticketNumber) {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-ticket").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -2707,6 +2922,7 @@ body{
   });
 
   function openUserChatFromHistory(chatId) {
+    document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-chat").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
@@ -4049,6 +4265,8 @@ function goScreen(name){
 function updateOngoingChatBar() {
   const bar = document.getElementById('ongoing-chat-bar');
   if (!bar) return;
+  const navHidden = document.getElementById('bottom-nav').classList.contains('nav-hidden');
+  if (navHidden) { bar.style.display = 'none'; return; }
   if (window.currentUserChatId && window.currentUserChatAstroName) {
     document.getElementById('ocb-username').textContent = window.currentUserChatAstroName;
     bar.style.display = 'flex';
@@ -4065,6 +4283,23 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 let lastScreen = "astro";
+
+async function checkAstrologerBusy(astroId) {
+  try {
+    const chatSnap = await db.collection('chats')
+      .where('astrologerId', '==', astroId)
+      .where('status', '!=', 'ended')
+      .limit(1).get();
+    const astroSnap = await db.collection('astrologers').doc(astroId).get();
+    const isBusy = !chatSnap.empty || (astroSnap.exists && astroSnap.data().isBusy === true);
+    const callBtn = document.getElementById('astro-call-btn');
+    const chatBtn = document.getElementById('astro-chat-btn');
+    if (callBtn) callBtn.style.background = isBusy ? 'var(--rose)' : '';
+    if (chatBtn) chatBtn.style.background = isBusy ? 'var(--rose)' : '';
+    if (callBtn) callBtn.style.borderColor = isBusy ? 'var(--rose)' : '';
+    if (chatBtn) chatBtn.style.borderColor = isBusy ? 'var(--rose)' : '';
+  } catch (e) { /* ignore, keep default styling */ }
+}
 
 function openDetail(id){
   const a = ASTROLOGERS.find(x => x.id === id);
@@ -4147,10 +4382,11 @@ function openDetail(id){
     </div>
 
     <div class="sticky-actions">
-      <button class="act-secondary banner-btn" onclick="openChatKundliForm('${a.id}', 'call')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
-      <button class="act-primary banner-btn" onclick="openChatKundliForm('${a.id}', 'chat')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
+      <button class="act-secondary banner-btn" id="astro-call-btn" onclick="openChatKundliForm('${a.id}', 'call')">${bannerInner(svg('phone',15) + " Call ₹" + a.price + "/min")}</button>
+      <button class="act-primary banner-btn" id="astro-chat-btn" onclick="openChatKundliForm('${a.id}', 'chat')">${bannerInner(svg('chat',15) + " Chat ₹" + a.price + "/min")}</button>
     </div>
   `;
+  checkAstrologerBusy(a.id);
   selectedGiftId = null;
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-detail").classList.add("active");
