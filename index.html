@@ -1368,7 +1368,12 @@ body{
     </div>
     <div id="user-chat-body" style="display:none; padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
     <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
-      <input type="text" id="user-chat-input" placeholder="Type a message..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
+      <div style="flex:1; display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:24px; border:1px solid var(--line); background:rgba(255,255,255,0.6);">
+        <span id="uc-photo-btn" style="font-size:19px; cursor:pointer; flex-shrink:0;">🖼️</span>
+        <input type="text" id="user-chat-input" placeholder="Type a message..." style="flex:1; min-width:0; border:none; background:transparent; outline:none; color:var(--ink); font-size:14px; padding:6px 0;">
+      </div>
+      <input type="file" id="uc-photo-input" accept="image/*" style="display:none;">
+      <button id="uc-voice-btn" style="width:42px; height:42px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:16px; cursor:pointer; flex-shrink:0;">🎤</button>
       <button id="user-chat-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
     </div>
   </section>
@@ -2647,6 +2652,73 @@ body{
     const input = document.getElementById('user-chat-input');
     if (sendBtn) sendBtn.addEventListener('click', sendUserMessage);
     if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendUserMessage(); });
+
+    const ucPhotoBtn = document.getElementById('uc-photo-btn');
+    const ucPhotoInput = document.getElementById('uc-photo-input');
+    if (ucPhotoBtn) ucPhotoBtn.addEventListener('click', () => ucPhotoInput.click());
+    if (ucPhotoInput) ucPhotoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || !window.currentUserChatId) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = async () => {
+          const maxW = 480;
+          const scale = Math.min(1, maxW / img.width);
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          await db.collection('chats').doc(window.currentUserChatId).collection('messages').add({
+            senderType: 'user', photo: dataUrl, sentAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          await db.collection('chats').doc(window.currentUserChatId).update({
+            lastMessage: '📷 Photo', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    let ucMediaRecorder = null;
+    let ucRecordedChunks = [];
+    const ucVoiceBtn = document.getElementById('uc-voice-btn');
+    if (ucVoiceBtn) ucVoiceBtn.addEventListener('click', async () => {
+      if (ucMediaRecorder && ucMediaRecorder.state === 'recording') {
+        ucMediaRecorder.stop();
+        ucVoiceBtn.textContent = '🎤';
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        ucMediaRecorder = new MediaRecorder(stream);
+        ucRecordedChunks = [];
+        ucMediaRecorder.ondataavailable = (e) => ucRecordedChunks.push(e.data);
+        ucMediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(ucRecordedChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onload = async () => {
+            if (!window.currentUserChatId) return;
+            await db.collection('chats').doc(window.currentUserChatId).collection('messages').add({
+              senderType: 'user', voiceNote: reader.result, sentAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            await db.collection('chats').doc(window.currentUserChatId).update({
+              lastMessage: '🎤 Voice message', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          };
+          reader.readAsDataURL(blob);
+        };
+        ucMediaRecorder.start();
+        ucVoiceBtn.textContent = '⏹️';
+      } catch (e) {
+        showToast('Microphone access is needed to send a voice message.');
+      }
+    });
+
     const endBtn = document.getElementById('user-end-chat-btn');
     if (endBtn) endBtn.addEventListener('click', async () => {
       if (!window.currentUserChatId) return;
