@@ -3115,6 +3115,8 @@ body{
   }
 
   window.openUserChatsList = function() {
+    const activeEl = document.querySelector(".screen.active");
+    if (activeEl) lastScreen = activeEl.id.replace("screen-", "");
     document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-my-chats").classList.add("active");
@@ -3125,15 +3127,21 @@ body{
     const listEl = document.getElementById('my-chats-list');
     if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
     listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
-    db.collection('chats').where('userId', '==', uid).orderBy('lastMessageAt', 'desc')
+    db.collection('chats').where('userId', '==', uid)
       .onSnapshot((snap) => {
         if (snap.empty) {
           listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px; padding:30px 0;">No chats yet.</p>';
           return;
         }
+        const rows = [];
+        snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+        rows.sort((a, b) => {
+          const ta = a.lastMessageAt && a.lastMessageAt.toDate ? a.lastMessageAt.toDate().getTime() : 0;
+          const tb = b.lastMessageAt && b.lastMessageAt.toDate ? b.lastMessageAt.toDate().getTime() : 0;
+          return tb - ta;
+        });
         listEl.innerHTML = '';
-        snap.forEach(d => {
-          const c = d.data();
+        rows.forEach(c => {
           const time = c.lastMessageAt && c.lastMessageAt.toDate ? c.lastMessageAt.toDate().toLocaleString('en-IN', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
           const row = document.createElement('div');
           row.className = 'gold-card';
@@ -3142,9 +3150,11 @@ body{
             <div style="display:flex; justify-content:space-between;"><b style="font-size:14px;">Astrologer</b><span style="font-size:11px; color:var(--ink-faint);">${time}</span></div>
             <div style="font-size:12.5px; color:var(--ink-faint); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.lastMessage || ''}</div>
           `;
-          row.addEventListener('click', () => openUserChatFromHistory(d.id));
+          row.addEventListener('click', () => openUserChatFromHistory(c.id));
           listEl.appendChild(row);
         });
+      }, (err) => {
+        listEl.innerHTML = `<p style="text-align:center; color:var(--rose); font-size:13px; padding:20px;">Error: ${err.message}</p>`;
       });
   };
 
@@ -4789,6 +4799,7 @@ function openDetail(id){
 function closeDetailScreen(){
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   document.getElementById("screen-" + lastScreen).classList.add("active");
+  document.querySelectorAll(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.screen === lastScreen));
   document.getElementById("bottom-nav").classList.remove("nav-hidden");
   resetDeviceScroll();
 }
