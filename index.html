@@ -100,12 +100,19 @@
 
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
+button, .back-btn, #user-end-chat-btn, #user-chat-send, #user-incoming-start-btn,
+.bottom-nav .nav-item, #ocb-view-btn, #queue-start-btn, #queue-decline-btn, #queue-cancel-btn,
+#uc-photo-btn, #uc-voice-btn, .act-primary, .act-secondary{
+  -webkit-user-select:none; -moz-user-select:none; user-select:none;
+  -webkit-touch-callout:none;
+}
 body{
   background:#FAF9F5;
   color:var(--ink);
   font-family:'Manrope',sans-serif;
   line-height:1.45;
   -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color: transparent;
   display:flex;
   justify-content:center;
   min-height:100vh;
