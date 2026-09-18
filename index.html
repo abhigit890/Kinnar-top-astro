@@ -1410,9 +1410,14 @@ body{
   <section class="screen" id="screen-my-chats">
     <div class="detail-topbar">
       <button class="back-btn" onclick="closeDetailScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
-      <span style="font-weight:700; color:var(--gold-text); margin-left:8px;">Chat History</span>
+      <span style="font-weight:700; color:var(--gold-text); margin-left:8px;">History</span>
     </div>
-    <div id="my-chats-list" style="padding:64px 14px 40px;"></div>
+    <div style="display:flex; gap:8px; padding:64px 14px 0;">
+      <span class="hist-tab active" data-tab="chat" onclick="switchHistoryTab('chat')" style="flex:1; text-align:center; padding:9px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; background:var(--gold); color:#2E1D0C;">Chat</span>
+      <span class="hist-tab" data-tab="call" onclick="switchHistoryTab('call')" style="flex:1; text-align:center; padding:9px; border-radius:20px; font-size:13px; font-weight:700; cursor:pointer; background:transparent; color:var(--ink-faint); border:1px solid var(--line);">Call</span>
+    </div>
+    <div id="my-chats-list" style="padding:14px 14px 40px;"></div>
+    <div id="my-calls-list" style="display:none; padding:14px 14px 40px;"></div>
   </section>
 
   <!-- ================= REMEDY CHAT ================= -->
@@ -1455,6 +1460,12 @@ body{
     <div id="user-incoming-astro-name" class="display" style="color:#F5EFE2;font-size:23px;font-weight:700;margin-bottom:38px;">Astrologer</div>
     <button id="user-incoming-start-btn" style="width:100%;max-width:300px;padding:16px;border:0;border-radius:32px;background:linear-gradient(160deg,#4CAF6A,#2E9E55);color:#fff;font-size:17px;font-weight:700;cursor:pointer;">Start Chat</button>
     <div id="user-incoming-reject-btn" style="margin-top:18px;color:#E08AA8;font-size:13.5px;font-weight:600;text-decoration:underline;cursor:pointer;">Reject</div>
+  </div>
+
+  <!-- ================= PHOTO VIEWER ================= -->
+  <div id="photo-viewer-overlay" style="display:none; position:fixed; inset:0; z-index:300; background:rgba(0,0,0,0.95); align-items:center; justify-content:center; overflow:hidden; touch-action:none;">
+    <span id="photo-viewer-close" style="position:absolute; top:16px; right:20px; color:#fff; font-size:30px; cursor:pointer; z-index:301;">✕</span>
+    <img id="photo-viewer-img" style="max-width:100%; max-height:100%; transform-origin:center center; touch-action:none; user-select:none;">
   </div>
 
   <!-- ================= REVIEW POPUP ================= -->
@@ -1621,7 +1632,7 @@ body{
 
       <p class="k-error" id="ck-error"></p>
       <button class="banner-btn" onclick="submitChatKundliForm()" style="width:100%; margin-top:14px;">
-        <span class="blabel">Start Chat</span>
+        <span class="blabel" id="ck-submit-label">Start Chat</span>
       </button>
     </div>
   </div>
@@ -2396,6 +2407,67 @@ body{
     }
   }
 
+  // ---- Full-screen photo viewer with zoom ----
+  let pvScale = 1, pvPanX = 0, pvPanY = 0;
+  let pvLastDist = null, pvLastMid = null, pvDragging = false, pvDragStart = null;
+
+  function openPhotoViewer(src) {
+    const img = document.getElementById('photo-viewer-img');
+    img.src = src;
+    pvScale = 1; pvPanX = 0; pvPanY = 0;
+    img.style.transform = 'translate(0px,0px) scale(1)';
+    document.getElementById('photo-viewer-overlay').style.display = 'flex';
+  }
+  window.openPhotoViewer = openPhotoViewer;
+
+  function pvApplyTransform() {
+    document.getElementById('photo-viewer-img').style.transform = `translate(${pvPanX}px,${pvPanY}px) scale(${pvScale})`;
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('photo-viewer-overlay');
+    const img = document.getElementById('photo-viewer-img');
+    const closeBtn = document.getElementById('photo-viewer-close');
+    if (closeBtn) closeBtn.addEventListener('click', () => { overlay.style.display = 'none'; });
+
+    if (img) {
+      img.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        pvScale = Math.min(5, Math.max(1, pvScale - e.deltaY * 0.002));
+        pvApplyTransform();
+      });
+      img.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          pvLastDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        } else if (e.touches.length === 1) {
+          pvDragging = true;
+          pvDragStart = { x: e.touches[0].clientX - pvPanX, y: e.touches[0].clientY - pvPanY };
+        }
+      }, { passive: true });
+      img.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pvLastDist != null) {
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          pvScale = Math.min(5, Math.max(1, pvScale * (dist / pvLastDist)));
+          pvLastDist = dist;
+          pvApplyTransform();
+        } else if (e.touches.length === 1 && pvDragging && pvScale > 1) {
+          pvPanX = e.touches[0].clientX - pvDragStart.x;
+          pvPanY = e.touches[0].clientY - pvDragStart.y;
+          pvApplyTransform();
+        }
+      }, { passive: true });
+      img.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) pvLastDist = null;
+        if (e.touches.length === 0) pvDragging = false;
+      });
+      img.addEventListener('dblclick', () => {
+        pvScale = pvScale > 1 ? 1 : 2;
+        pvPanX = 0; pvPanY = 0;
+        pvApplyTransform();
+      });
+    }
+  });
+
   // ---- Review / Rating popup ----
   let reviewSelectedStar = 0;
   let reviewContext = null; // { astrologerId, astrologerName, sessionId, sessionType }
@@ -2670,6 +2742,10 @@ body{
 
   function openChatKundliForm(astroId, type) {
     window.pendingKundliRequestType = type || 'chat';
+    const submitLabelEl = document.getElementById('ck-submit-label');
+    if (submitLabelEl) {
+      submitLabelEl.textContent = (type === 'video') ? 'Start Video Call' : (type === 'call') ? 'Start Call' : 'Start Chat';
+    }
     const savedList = getSavedKundlis();
     const importSelect = document.getElementById('ck-import-select');
     importSelect.innerHTML = '<option value="">📥 Import a saved Kundli...</option>' +
@@ -2939,7 +3015,10 @@ body{
             db.collection('chats').doc(chatId).collection('messages').doc(d.id).update({ delivered: true, read: true }).catch(()=>{});
           }
           if (m.photo) {
-            bubble.innerHTML = `<img src="${m.photo}" style="width:100%; border-radius:8px;"><span class="u-ts">${time}${ticks}</span>`;
+            bubble.innerHTML = `<img class="chat-photo-msg" style="width:100%; border-radius:8px; cursor:pointer;"><span class="u-ts">${time}${ticks}</span>`;
+            const imgEl = bubble.querySelector('.chat-photo-msg');
+            imgEl.src = m.photo;
+            imgEl.addEventListener('click', () => openPhotoViewer(imgEl.src));
           } else if (m.voiceNote) {
             bubble.innerHTML = `<audio controls src="${m.voiceNote}" style="max-width:210px;"></audio><span class="u-ts">${time}${ticks}</span>`;
           } else {
@@ -2974,12 +3053,74 @@ body{
   }
 
   // ---- My Chats (history) list ----
+  let userCallHistoryUnsub = null;
+
+  window.switchHistoryTab = function(tab) {
+    document.querySelectorAll('.hist-tab').forEach(t => {
+      const active = t.dataset.tab === tab;
+      t.style.background = active ? 'var(--gold)' : 'transparent';
+      t.style.color = active ? '#2E1D0C' : 'var(--ink-faint)';
+      t.style.border = active ? 'none' : '1px solid var(--line)';
+    });
+    document.getElementById('my-chats-list').style.display = tab === 'chat' ? 'block' : 'none';
+    document.getElementById('my-calls-list').style.display = tab === 'call' ? 'block' : 'none';
+    if (tab === 'call') loadUserCallHistory();
+  };
+
+  function loadUserCallHistory() {
+    const uid = auth.currentUser ? auth.currentUser.uid : null;
+    const listEl = document.getElementById('my-calls-list');
+    if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
+    listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
+    if (userCallHistoryUnsub) { userCallHistoryUnsub(); userCallHistoryUnsub = null; }
+    userCallHistoryUnsub = db.collection('calls').where('userId', '==', uid)
+      .onSnapshot(async (snap) => {
+        if (snap.empty) {
+          listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px; padding:30px 0;">No calls yet.</p>';
+          return;
+        }
+        const rows = [];
+        snap.forEach(d => rows.push(d.data()));
+        rows.sort((a, b) => {
+          const ta = a.calledAt && a.calledAt.toDate ? a.calledAt.toDate() : new Date(0);
+          const tb = b.calledAt && b.calledAt.toDate ? b.calledAt.toDate() : new Date(0);
+          return tb - ta;
+        });
+        const astroCache = {};
+        const htmlParts = [];
+        for (const c of rows) {
+          if (!astroCache[c.astrologerId]) {
+            try {
+              const aSnap = await db.collection('astrologers').doc(c.astrologerId).get();
+              astroCache[c.astrologerId] = aSnap.exists ? aSnap.data() : {};
+            } catch (e) { astroCache[c.astrologerId] = {}; }
+          }
+          const a = astroCache[c.astrologerId] || {};
+          const dateText = c.calledAt && c.calledAt.toDate ? c.calledAt.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+          const timeText = c.calledAt && c.calledAt.toDate ? c.calledAt.toDate().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '';
+          const mins = Math.max(1, Math.round((c.duration || 0) / 60));
+          htmlParts.push(`
+            <div class="gold-card" style="padding:14px; margin-bottom:10px; display:flex; gap:12px; align-items:center;">
+              ${a.profilePhoto ? `<img src="${a.profilePhoto}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;">` : `<div style="width:44px;height:44px;border-radius:50%;background:rgba(217,169,79,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🧑‍🔮</div>`}
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13.5px; font-weight:700; color:var(--ink);">${a.name || 'Astrologer'}</div>
+                <div style="font-size:11.5px; color:var(--ink-faint); margin-top:2px;">${c.type === 'video' ? '🎥 Video Call' : '📞 Audio Call'} · ${mins} min</div>
+                <div style="font-size:11px; color:var(--ink-faint); margin-top:2px;">${dateText}, ${timeText}</div>
+              </div>
+            </div>
+          `);
+        }
+        listEl.innerHTML = htmlParts.join('');
+      }, (err) => { listEl.innerHTML = `<p style="text-align:center; color:var(--rose); font-size:13px;">Error: ${err.message}</p>`; });
+  }
+
   window.openUserChatsList = function() {
     document.getElementById("ongoing-chat-bar").style.display = 'none';
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-my-chats").classList.add("active");
     document.getElementById("bottom-nav").classList.add("nav-hidden");
     resetDeviceScroll();
+    switchHistoryTab('chat');
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     const listEl = document.getElementById('my-chats-list');
     if (!uid) { listEl.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Connecting...</p>'; return; }
@@ -3729,7 +3870,7 @@ const MENU_ITEMS_1 = [
   { icon:"gear", label:"Kundli Settings", action:"kundliSettings" },
   { icon:"wallet", label:"Transaction History", action:"transactionHistory" },
   { icon:"book", label:"My Bookings", action:"myBookings" },
-  { icon:"chat", label:"Chat History", action:"chatHistory" },
+  { icon:"chat", label:"History", action:"chatHistory" },
   { icon:"globe", label:"App Language", action:"appLanguage" },
 ];
 const MENU_ITEMS_2 = [
