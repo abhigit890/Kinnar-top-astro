@@ -2715,6 +2715,9 @@ body{
   }
 
   function openUserChatThread(chatId) {
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-chat").classList.add("active");
+    document.getElementById("bottom-nav").classList.add("nav-hidden");
     window.currentUserChatId = chatId;
     document.getElementById("user-chat-waiting").style.display = 'none';
     document.getElementById("user-chat-body").style.display = 'flex';
@@ -2738,6 +2741,13 @@ body{
     userChatUnsubStatus = db.collection('chats').doc(chatId).onSnapshot((chatSnap) => {
       const c=chatSnap.exists?chatSnap.data():{};
       const ended=c.status==='ended'; const active=c.status==='active'; const waiting=!active&&!ended;
+      if (ended) {
+        if (window.currentUserChatId === chatId) {
+          window.currentUserChatId = null;
+          window.currentUserChatAstroName = null;
+        }
+        updateOngoingChatBar();
+      }
       document.getElementById('user-chat-input').disabled = !active;
       document.getElementById('user-chat-send').disabled = !active;
       document.getElementById('user-end-chat-btn').style.display = (active||waiting) ? 'block' : 'none';
@@ -3070,7 +3080,15 @@ body{
   const uis=document.getElementById('user-incoming-start-btn');
   const uir=document.getElementById('user-incoming-reject-btn');
   if(uis) uis.addEventListener('click',async()=>{const rid=window.currentIncomingChatRequestId;if(!rid)return;hideUserChatIncoming();await db.collection('requests').doc(rid).update({queueStatus:'user_accepted',userAcceptedAt:firebase.firestore.FieldValue.serverTimestamp()});openUserChatThread(rid);});
-  if(uir) uir.addEventListener('click',async()=>{const rid=window.currentIncomingChatRequestId;if(!rid)return;hideUserChatIncoming();await db.collection('requests').doc(rid).update({queueStatus:'user_declined',status:'declined',declinedBy:'user',declinedAt:firebase.firestore.FieldValue.serverTimestamp()});window.currentIncomingChatRequestId=null;});
+  if(uir) uir.addEventListener('click',async()=>{
+    const rid=window.currentIncomingChatRequestId;if(!rid)return;
+    hideUserChatIncoming();
+    const uname=localStorage.getItem('aangan_user_name') || 'User';
+    await db.collection('requests').doc(rid).update({queueStatus:'user_declined',status:'declined',declinedBy:'user',declinedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await db.collection('chats').doc(rid).update({status:'ended',endReason:'user_declined',endedByType:'user',endedByName:uname,endedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+    await db.collection('chats').doc(rid).collection('messages').add({text:`${uname} declined the chat.`,senderType:'system',endReason:'user_declined',sentAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+    window.currentIncomingChatRequestId=null;
+  });
   });
 </script>
 
