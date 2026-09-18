@@ -1,11 +1,11 @@
 {
-  "name": "Aangan",
-  "short_name": "Aangan",
+  "name": "Kinnar Talk",
+  "short_name": "Kinnar Talk",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FAF9F5",
+  "background_color": "#0C0904",
   "theme_color": "#D9A94F",
   "icons": [
     {
