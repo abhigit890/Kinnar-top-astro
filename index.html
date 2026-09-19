@@ -4000,11 +4000,12 @@ async function computeAstroVisibilityScore(astroId, createdAt){
     if(!createdMs || ageMs < VISIBILITY_GRACE_MS){
       return { visibilityScore: 100, inGracePeriod: true };
     }
-    const [reviewsSnap, chatsSnap, callsSnap, satSnap] = await Promise.all([
+    const [reviewsSnap, chatsSnap, callsSnap, satSnap, requestsSnap] = await Promise.all([
       db.collection('reviews').where('astrologerId','==',astroId).get(),
       db.collection('chats').where('astrologerId','==',astroId).get(),
       db.collection('calls').where('astrologerId','==',astroId).get(),
-      db.collection('satisfactionRatings').where('astrologerId','==',astroId).get()
+      db.collection('satisfactionRatings').where('astrologerId','==',astroId).get(),
+      db.collection('requests').where('astrologerId','==',astroId).get()
     ]);
     const reviews = []; reviewsSnap.forEach(d => reviews.push(d.data()));
     reviews.sort((a,b) => tsMs(b.createdAt) - tsMs(a.createdAt));
@@ -4047,7 +4048,28 @@ async function computeAstroVisibilityScore(astroId, createdAt){
       satisfactionPct = (avgScore / 10) * 100;
     }
 
-    const visibilityScore = (callRatingPct + chatRatingPct + loyalUsersPct + satisfactionPct) / 4;
+    // Response rate: of the astrologer's most recent 100 settled requests, % NOT missed
+    // by the astrologer — keeps a low-visibility astrologer from just rejecting/ignoring
+    // most incoming chats and calls.
+    const requestRows = []; requestsSnap.forEach(d => requestRows.push(d.data()));
+    // Only requests the astrologer themselves missed count here. A request the user
+    // backed out of/cancelled — even one the astrologer had already accepted — is
+    // excluded entirely (missedBy:'user'), so it has no effect either way. We use the
+    // permanent `astrologerAcceptedAt` timestamp (not `queueStatus`, which gets
+    // overwritten to 'user_declined' once the user cancels) to know the astrologer
+    // did engage with a request.
+    const settledRequests = requestRows.filter(r =>
+      r.missedBy !== 'user' &&
+      (r.missedBy === 'astrologer' || !!r.astrologerAcceptedAt || r.queueStatus === 'completed' || r.queueStatus === 'started')
+    );
+    settledRequests.sort((a,b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+    const recentRequests = settledRequests.slice(0,100);
+    let responseRatePct = 100;
+    if(recentRequests.length){
+      responseRatePct = (recentRequests.filter(r => r.missedBy !== 'astrologer').length / recentRequests.length) * 100;
+    }
+
+    const visibilityScore = (callRatingPct + chatRatingPct + loyalUsersPct + satisfactionPct + responseRatePct) / 5;
     return { visibilityScore, inGracePeriod: false };
   } catch(e){ return { visibilityScore: 100, inGracePeriod: true }; }
 }
