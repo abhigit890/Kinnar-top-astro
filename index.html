@@ -974,6 +974,7 @@ body{
 .ticket-row .tstatus.open{ background:rgba(78,149,135,0.18); color:var(--jade); }
 .ticket-row .tstatus.closed{ background:rgba(196,87,126,0.18); color:var(--rose); }
 .u-bubble .u-ts{ display:block; font-size:10px; opacity:0.6; margin-top:4px; }
+@keyframes tRecPulse{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.35; transform:scale(0.8); } }
 
 /* ---- Splash screen (shown briefly on launch) ---- */
 #splash-screen{
@@ -1560,11 +1561,21 @@ body{
   <section class="screen" id="screen-ticket">
     <div class="detail-topbar">
       <button class="back-btn" onclick="closeDetailScreen(); openSupportList();"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
-      <span id="ticket-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Ticket</span>
+      <div style="margin-left:8px; line-height:1.25;">
+        <div style="font-weight:700; color:var(--gold-text);">Support Chat</div>
+        <div id="ticket-title" style="font-size:11px; color:var(--ink-faint); font-weight:500;"></div>
+      </div>
     </div>
     <div id="ticket-body" style="padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
-    <div style="position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); display:flex; align-items:center;">
+    <div id="ticket-record-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:10px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
+      <div style="width:9px; height:9px; border-radius:50%; background:#D64C6B; animation:tRecPulse 1s ease-in-out infinite; flex-shrink:0;"></div>
+      <span id="ticket-rec-timer" style="flex:1; font-size:13.5px; color:var(--ink); font-weight:600;">0:00</span>
+      <button id="ticket-rec-cancel" title="Cancel" style="width:40px; height:40px; border-radius:50%; border:1px solid var(--line); background:transparent; color:var(--ink-faint); font-size:16px; cursor:pointer; flex-shrink:0;">✕</button>
+      <button id="ticket-rec-stop" title="Send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:16px; cursor:pointer; flex-shrink:0;">➤</button>
+    </div>
+    <div id="ticket-type-bar" style="position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); display:flex; align-items:center;">
       <input type="text" id="ticket-input" placeholder="Describe your issue..." style="flex:1; padding:12px 14px; border-radius:20px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:14px;">
+      <button id="ticket-mic" title="Record voice message" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--card-hi); border:1px solid var(--line); color:var(--gold-text); font-size:17px; cursor:pointer; flex-shrink:0;">🎤</button>
       <button id="ticket-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
     </div>
   </section>
@@ -3262,6 +3273,8 @@ body{
     document.getElementById("bottom-nav").classList.add("nav-hidden");
     window.currentTicketId = ticketId;
     document.getElementById('ticket-title').textContent = 'Ticket #' + ticketNumber;
+    document.getElementById('ticket-record-bar').style.display = 'none';
+    document.getElementById('ticket-type-bar').style.display = 'flex';
     const body = document.getElementById('ticket-body');
     body.innerHTML = '<p style="text-align:center; color:var(--ink-faint); font-size:13px;">Loading...</p>';
     resetDeviceScroll();
@@ -3281,7 +3294,13 @@ body{
           const cls = m.senderType === 'user' ? 'from-me' : m.senderType === 'system' ? 'from-system' : 'from-astro';
           bubble.className = 'u-bubble ' + cls;
           const time = m.sentAt && m.sentAt.toDate ? m.sentAt.toDate().toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'}) : '';
-          bubble.innerHTML = cls === 'from-system' ? (m.text || '') : `${m.text || ''}<span class="u-ts">${time}</span>`;
+          if (cls === 'from-system') {
+            bubble.innerHTML = m.text || '';
+          } else if (m.voiceNote) {
+            bubble.innerHTML = `<audio controls src="${m.voiceNote}" style="max-width:210px;"></audio><span class="u-ts">${time}</span>`;
+          } else {
+            bubble.innerHTML = `${m.text || ''}<span class="u-ts">${time}</span>`;
+          }
           body.appendChild(bubble);
         });
         if (Date.now() - openedAt < 1200) { resetDeviceScroll(); }
@@ -3306,6 +3325,75 @@ body{
     const tInput = document.getElementById('ticket-input');
     if (tSend) tSend.addEventListener('click', sendTicketMessage);
     if (tInput) tInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') sendTicketMessage(); });
+  });
+
+  // ---- Support ticket voice notes (mic in the ticket chat bottom bar) ----
+  let ticketMediaRecorder = null;
+  let ticketRecordedChunks = [];
+  let ticketRecTimerInt = null;
+  let ticketRecCancelled = false;
+  const TICKET_REC_MAX_SECONDS = 90;
+
+  function ticketRecTick(startedAt) {
+    const secs = Math.floor((Date.now() - startedAt) / 1000);
+    const m = Math.floor(secs / 60), s = secs % 60;
+    const timerEl = document.getElementById('ticket-rec-timer');
+    if (timerEl) timerEl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+    if (secs >= TICKET_REC_MAX_SECONDS && ticketMediaRecorder && ticketMediaRecorder.state === 'recording') {
+      ticketMediaRecorder.stop();
+    }
+  }
+
+  async function startTicketRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      ticketMediaRecorder = new MediaRecorder(stream);
+      ticketRecordedChunks = [];
+      ticketRecCancelled = false;
+      ticketMediaRecorder.ondataavailable = (e) => ticketRecordedChunks.push(e.data);
+      ticketMediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        clearInterval(ticketRecTimerInt);
+        document.getElementById('ticket-record-bar').style.display = 'none';
+        document.getElementById('ticket-type-bar').style.display = 'flex';
+        if (ticketRecCancelled || !window.currentTicketId) return;
+        const blob = new Blob(ticketRecordedChunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onload = async () => {
+          await db.collection('supportTickets').doc(window.currentTicketId).collection('messages').add({
+            senderType: 'user', voiceNote: reader.result, sentAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          await db.collection('supportTickets').doc(window.currentTicketId).update({
+            lastMessage: '🎤 Voice message', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        };
+        reader.readAsDataURL(blob);
+      };
+      ticketMediaRecorder.start();
+      const startedAt = Date.now();
+      document.getElementById('ticket-rec-timer').textContent = '0:00';
+      document.getElementById('ticket-type-bar').style.display = 'none';
+      document.getElementById('ticket-record-bar').style.display = 'flex';
+      ticketRecTimerInt = setInterval(() => ticketRecTick(startedAt), 250);
+    } catch (e) {
+      showToast('Microphone access is needed to send a voice message.');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const micBtn = document.getElementById('ticket-mic');
+    const stopBtn = document.getElementById('ticket-rec-stop');
+    const cancelBtn = document.getElementById('ticket-rec-cancel');
+    if (micBtn) micBtn.addEventListener('click', startTicketRecording);
+    if (stopBtn) stopBtn.addEventListener('click', () => {
+      if (ticketMediaRecorder && ticketMediaRecorder.state === 'recording') ticketMediaRecorder.stop();
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', () => {
+      if (ticketMediaRecorder && ticketMediaRecorder.state === 'recording') {
+        ticketRecCancelled = true;
+        ticketMediaRecorder.stop();
+      }
+    });
   });
 
   function openUserChatFromHistory(chatId) {
