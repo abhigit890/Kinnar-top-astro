@@ -3839,6 +3839,26 @@ function isAstroBanned(a){
 function specialtyList(a){ return (a && a.specialty) ? a.specialty.split(",").map(s=>s.trim()).filter(Boolean) : []; }
 function astroInitial(a){ return a && a.profilePhoto ? `<img src="${a.profilePhoto}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : initials(a && a.name); }
 
+function astroGalleryPhotos(a){
+  return (a && Array.isArray(a.photos)) ? a.photos.filter(p => !!p) : [];
+}
+function astroGalleryHtml(a){
+  const photos = astroGalleryPhotos(a);
+  if(photos.length < 3) return "";
+  return `
+    <div class="photo-section">
+      <div class="section-title" style="font-size:14px; margin-bottom:8px;">Photos</div>
+      <div class="photo-strip">
+        ${photos.map((p,i) => `
+          <div class="photo-thumb" onclick="openPhotoLightbox('${a.id}', ${i})">
+            <img src="${p}" alt="Photo">
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
 async function computeAstroRating(astrologerId){
   try {
     const snap = await db.collection('reviews').where('astrologerId','==',astrologerId).get();
@@ -3848,6 +3868,27 @@ async function computeAstroRating(astrologerId){
     if(!n) return null;
     return { avg: (sum/n), count: n };
   } catch(e){ return null; }
+}
+
+// Cache of { avg, count } per astrologer id, recomputed whenever the
+// astrologers list refreshes, so list/card renders never do a per-card
+// Firestore query — they just read this map.
+let astroRatings = {};
+async function refreshAstroRatings(){
+  const ids = liveAstrologers.map(a => a.id);
+  const results = await Promise.all(ids.map(id => computeAstroRating(id)));
+  const next = {};
+  ids.forEach((id, i) => { if(results[i]) next[id] = results[i]; });
+  astroRatings = next;
+  if (typeof renderAstroList === "function") renderAstroList();
+  if (typeof renderMiniAstro === "function") renderMiniAstro();
+}
+function astroRatingBadge(a, compact){
+  const r = a && astroRatings[a.id];
+  if(!r) return "";
+  return compact
+    ? `<span class="rating-chip" style="font-size:10px; color:var(--gold-text); font-weight:700;">★ ${r.avg.toFixed(1)}</span>`
+    : `<span class="rating-chip" style="font-size:11.5px; color:var(--gold-text); font-weight:700;">★ ${r.avg.toFixed(1)} <span style="color:var(--ink-faint); font-weight:500;">(${r.count})</span></span>`;
 }
 
 function pickAnyAvailableAstrologer(){
@@ -3884,6 +3925,7 @@ function notifyAstrologerOnline(a){
 db.collection('astrologers').onSnapshot((snap) => {
   liveAstrologers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   checkFollowedOnlineTransitions();
+  refreshAstroRatings();
   if (typeof renderAstroList === "function") renderAstroList();
   if (typeof renderMiniAstro === "function") renderMiniAstro();
   if (typeof renderLiveList === "function") renderLiveList();
@@ -4393,7 +4435,10 @@ function renderMiniAstro(){
       <div class="astro-avatar-frame"><div class="avatar" style="background:${avatarColor(a.id)}">${astroInitial(a)}</div></div>
       <p class="name">${a.name}</p>
       <p class="spec">${specialtyList(a)[0] || ''}</p>
-      <span class="rate-chip">₹${a.price||0}/min</span>
+      <div style="display:flex; align-items:center; justify-content:center; gap:6px; flex-wrap:wrap;">
+        <span class="rate-chip">₹${a.price||0}/min</span>
+        ${astroRatingBadge(a, true)}
+      </div>
     </div>
   `).join("");
 }
@@ -4690,6 +4735,7 @@ function renderAstroList(){
             <p class="astro-name">${a.name}</p>
             <p class="astro-badge">Kinnar Astrologer</p>
           </div>
+          ${astroRatingBadge(a, false)}
         </div>
         <div class="astro-tags">
           ${specialtyList(a).map(s=>`<span class="tag">${s}</span>`).join("")}
@@ -5015,6 +5061,8 @@ function openDetail(id){
       </div>
     </div>
 
+    ${astroGalleryHtml(a)}
+
     <div class="section-divider"></div>
 
     <div class="section-title" style="font-size:14px; margin-bottom:10px;">Reviews<span class="detail-rating" id="detail-rating-holder"></span></div>
@@ -5044,10 +5092,12 @@ function openDetail(id){
     </div>
 
     <div class="sticky-actions">
-      <button class="act-secondary banner-btn" id="astro-call-btn" ${visible ? `onclick="openChatKundliForm('${a.id}', 'call')"` : 'disabled style="opacity:.5;"'}>${bannerInner(svg('phone',15) + " Call ₹" + (a.price||0) + "/min")}</button>
-      <button class="act-primary banner-btn" id="astro-chat-btn" ${visible ? `onclick="openChatKundliForm('${a.id}', 'chat')"` : 'disabled style="opacity:.5;"'}>${bannerInner(svg('chat',15) + " Chat ₹" + (a.price||0) + "/min")}</button>
+      <button class="act-secondary banner-btn" id="astro-call-btn" ${(a.callOnline && !isAstroBanned(a)) ? `onclick="openChatKundliForm('${a.id}', 'call')"` : 'disabled style="opacity:.45;pointer-events:none;"'}>${bannerInner(svg('phone',15) + " Call ₹" + (a.price||0) + "/min")}</button>
+      <button class="act-primary banner-btn" id="astro-chat-btn" ${(a.chatOnline && !isAstroBanned(a)) ? `onclick="openChatKundliForm('${a.id}', 'chat')"` : 'disabled style="opacity:.45;pointer-events:none;"'}>${bannerInner(svg('chat',15) + " Chat ₹" + (a.price||0) + "/min")}</button>
     </div>
-    ${!visible ? `<p style="text-align:center; font-size:11.5px; color:var(--ink-faint); padding:0 16px 90px; margin-top:-80px;">This astrologer is currently offline.</p>` : ""}
+    ${(!a.callOnline || !a.chatOnline || isAstroBanned(a)) ? `<p style="text-align:center; font-size:11.5px; color:var(--ink-faint); padding:0 16px 90px; margin-top:-80px;">${
+      isAstroBanned(a) ? 'This astrologer is currently unavailable.' : ((!a.callOnline && !a.chatOnline) ? 'This astrologer is currently offline.' : (!a.chatOnline ? 'Currently offline for chat.' : 'Currently offline for calls.'))
+    }</p>` : ""}
   `;
   checkAstrologerBusy(a.id);
   loadPublicReviews(a.id);
@@ -6537,8 +6587,17 @@ function setChartStyle(style){
 
 function openPhotoLightbox(astroId, i){
   const el = document.getElementById("pl-big-img");
-  const base = hashIdToInt(astroId);
-  el.style.background = `linear-gradient(135deg, ${avatarColor(base+i)}, ${avatarColor(base+i+2)})`;
+  const a = liveAstrologers.find(x => x.id === astroId);
+  const photos = astroGalleryPhotos(a);
+  const src = photos[i];
+  if(src){
+    el.style.background = "";
+    el.innerHTML = `<img src="${src}" alt="Photo" style="width:100%;height:100%;object-fit:cover;border-radius:18px;">`;
+  } else {
+    const base = hashIdToInt(astroId);
+    el.innerHTML = "";
+    el.style.background = `linear-gradient(135deg, ${avatarColor(base+i)}, ${avatarColor(base+i+2)})`;
+  }
   document.getElementById("photo-lightbox").classList.add("show");
 }
 function closePhotoLightbox(e){
