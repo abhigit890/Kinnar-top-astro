@@ -1541,6 +1541,31 @@ body{
     </div>
   </div>
 
+  <!-- ================= SATISFACTION POPUP ================= -->
+  <div id="satisfaction-overlay" style="display:none; position:fixed; inset:0; z-index:260; background:rgba(0,0,0,.6); align-items:center; justify-content:center; padding:24px;">
+    <div style="background:var(--bg-soft); border-radius:20px; padding:26px 22px; width:100%; max-width:360px; text-align:center;">
+      <div style="font-family:'Cinzel',serif; font-size:17px; color:var(--gold-text); margin-bottom:14px;">How satisfied are you with this astrologer?</div>
+      <div id="satisfaction-scale" style="display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:18px;">
+        <span class="satisfaction-opt" data-score="0" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">0</span>
+        <span class="satisfaction-opt" data-score="1" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">1</span>
+        <span class="satisfaction-opt" data-score="2" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">2</span>
+        <span class="satisfaction-opt" data-score="3" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">3</span>
+        <span class="satisfaction-opt" data-score="4" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">4</span>
+        <span class="satisfaction-opt" data-score="5" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">5</span>
+        <span class="satisfaction-opt" data-score="6" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">6</span>
+        <span class="satisfaction-opt" data-score="7" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">7</span>
+        <span class="satisfaction-opt" data-score="8" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">8</span>
+        <span class="satisfaction-opt" data-score="9" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">9</span>
+        <span class="satisfaction-opt" data-score="10" style="width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; cursor:pointer; border:1.5px solid var(--line); color:var(--ink-faint); background:rgba(255,255,255,0.5);">10</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:10.5px; color:var(--ink-faint); margin:-12px 2px 16px;">
+        <span>Not satisfied</span><span>Very satisfied</span>
+      </div>
+      <button id="satisfaction-submit-btn" style="width:100%; padding:13px; border-radius:24px; border:none; background:var(--gold); color:#2E1D0C; font-weight:700; font-size:14.5px; cursor:pointer; margin-bottom:10px;">Submit</button>
+      <div id="satisfaction-skip-btn" style="font-size:12.5px; color:var(--ink-faint); cursor:pointer;">Skip</div>
+    </div>
+  </div>
+
   <!-- ================= QUEUE WAITING SCREEN ================= -->
   <section class="screen" id="screen-queue">
     <div style="display:flex; flex-direction:column; align-items:center; text-align:center; padding:70px 24px 40px; min-height:100vh;">
@@ -2542,6 +2567,21 @@ body{
   let reviewSelectedStar = 0;
   let reviewContext = null; // { astrologerId, astrologerName, sessionId, sessionType }
 
+  // ---- Customer satisfaction popup (shown right after a star rating is submitted) ----
+  let satisfactionSelectedScore = null;
+  let satisfactionContext = null; // { astrologerId, sessionId, sessionType, userId, userName }
+
+  function promptForSatisfaction(ctx) {
+    satisfactionContext = ctx;
+    satisfactionSelectedScore = null;
+    document.querySelectorAll('.satisfaction-opt').forEach(s => {
+      s.style.background = 'rgba(255,255,255,0.5)';
+      s.style.color = 'var(--ink-faint)';
+      s.style.borderColor = 'var(--line)';
+    });
+    document.getElementById('satisfaction-overlay').style.display = 'flex';
+  }
+
   function promptForReview(astrologerId, astrologerName, sessionId, sessionType) {
     if (!astrologerId || !sessionId) return;
     reviewContext = { astrologerId, astrologerName, sessionId, sessionType };
@@ -2568,6 +2608,14 @@ body{
       if (reviewSelectedStar < 1) { showToast('Please select a star rating.'); return; }
       const uid = auth.currentUser ? auth.currentUser.uid : null;
       const uname = localStorage.getItem('aangan_user_name') || 'User';
+      // Capture the session context locally so it survives reviewContext being cleared below,
+      // and so the satisfaction popup (shown only after a real star-rating submit) can reuse it.
+      const ctxForSatisfaction = {
+        astrologerId: reviewContext.astrologerId,
+        sessionId: reviewContext.sessionId,
+        sessionType: reviewContext.sessionType || 'chat',
+        userId: uid, userName: uname
+      };
       try {
         await db.collection('reviews').add({
           astrologerId: reviewContext.astrologerId,
@@ -2580,6 +2628,10 @@ body{
           createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         showToast('Thank you for your feedback!');
+        document.getElementById('review-overlay').style.display = 'none';
+        reviewContext = null;
+        promptForSatisfaction(ctxForSatisfaction);
+        return;
       } catch (e) { showToast('Could not submit review: ' + e.message); }
       document.getElementById('review-overlay').style.display = 'none';
       reviewContext = null;
@@ -2589,6 +2641,45 @@ body{
     if (reviewSkipBtn) reviewSkipBtn.addEventListener('click', () => {
       document.getElementById('review-overlay').style.display = 'none';
       reviewContext = null;
+      // Skipping the star rating means we don't show the satisfaction popup either.
+    });
+
+    document.querySelectorAll('.satisfaction-opt').forEach(optEl => {
+      optEl.addEventListener('click', () => {
+        satisfactionSelectedScore = parseInt(optEl.dataset.score, 10);
+        document.querySelectorAll('.satisfaction-opt').forEach(s => {
+          const selected = parseInt(s.dataset.score, 10) === satisfactionSelectedScore;
+          s.style.background = selected ? 'var(--gold)' : 'rgba(255,255,255,0.5)';
+          s.style.color = selected ? '#2E1D0C' : 'var(--ink-faint)';
+          s.style.borderColor = selected ? 'var(--gold)' : 'var(--line)';
+        });
+      });
+    });
+
+    const satisfactionSubmitBtn = document.getElementById('satisfaction-submit-btn');
+    if (satisfactionSubmitBtn) satisfactionSubmitBtn.addEventListener('click', async () => {
+      if (!satisfactionContext) { document.getElementById('satisfaction-overlay').style.display = 'none'; return; }
+      if (satisfactionSelectedScore === null) { showToast('Please select a score from 0 to 10.'); return; }
+      try {
+        await db.collection('satisfactionRatings').add({
+          astrologerId: satisfactionContext.astrologerId,
+          userId: satisfactionContext.userId,
+          userName: satisfactionContext.userName,
+          score: satisfactionSelectedScore,
+          sessionId: satisfactionContext.sessionId,
+          sessionType: satisfactionContext.sessionType,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        showToast('Thanks for letting us know!');
+      } catch (e) { showToast('Could not submit: ' + e.message); }
+      document.getElementById('satisfaction-overlay').style.display = 'none';
+      satisfactionContext = null;
+    });
+
+    const satisfactionSkipBtn = document.getElementById('satisfaction-skip-btn');
+    if (satisfactionSkipBtn) satisfactionSkipBtn.addEventListener('click', () => {
+      document.getElementById('satisfaction-overlay').style.display = 'none';
+      satisfactionContext = null;
     });
   });
 
@@ -3891,6 +3982,95 @@ function astroRatingBadge(a, compact){
     : `<span class="rating-chip" style="font-size:11.5px; color:var(--gold-text); font-weight:700;">★ ${r.avg.toFixed(1)} <span style="color:var(--ink-faint); font-weight:500;">(${r.count})</span></span>`;
 }
 
+// ---------------- Performance / visibility score ----------------
+// Same formula as the admin panel's computeAstroParams: 30-day grace period at 100,
+// then 4 parameters (call rating %, chat rating %, loyal users %, satisfaction %) each
+// computed from the most recent 100 relevant records, averaged into one visibilityScore.
+const VISIBILITY_GRACE_MS = 30 * 24 * 60 * 60 * 1000;
+function tsMs(ts){
+  if(!ts) return 0;
+  if(typeof ts.toDate === 'function') return ts.toDate().getTime();
+  if(ts.seconds) return ts.seconds * 1000;
+  return 0;
+}
+async function computeAstroVisibilityScore(astroId, createdAt){
+  try {
+    const createdMs = tsMs(createdAt);
+    const ageMs = createdMs ? (Date.now() - createdMs) : 0;
+    if(!createdMs || ageMs < VISIBILITY_GRACE_MS){
+      return { visibilityScore: 100, inGracePeriod: true };
+    }
+    const [reviewsSnap, chatsSnap, callsSnap, satSnap] = await Promise.all([
+      db.collection('reviews').where('astrologerId','==',astroId).get(),
+      db.collection('chats').where('astrologerId','==',astroId).get(),
+      db.collection('calls').where('astrologerId','==',astroId).get(),
+      db.collection('satisfactionRatings').where('astrologerId','==',astroId).get()
+    ]);
+    const reviews = []; reviewsSnap.forEach(d => reviews.push(d.data()));
+    reviews.sort((a,b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+    const callReviews = reviews.filter(r => r.sessionType === 'call' || r.sessionType === 'video').slice(0,100);
+    const chatReviews = reviews.filter(r => r.sessionType === 'chat').slice(0,100);
+    function ratingPct(list){
+      if(!list.length) return 100;
+      const fiveStar = list.filter(r => (r.rating||0) === 5).length;
+      return (fiveStar / list.length) * 100;
+    }
+    const callRatingPct = ratingPct(callReviews);
+    const chatRatingPct = ratingPct(chatReviews);
+
+    const sessions = [];
+    chatsSnap.forEach(d => {
+      const c = d.data();
+      if(c.status === 'ended' && c.createdAt && c.endedAt){
+        sessions.push({ durMin: (tsMs(c.endedAt) - tsMs(c.createdAt)) / 60000, ts: tsMs(c.endedAt) });
+      }
+    });
+    callsSnap.forEach(d => {
+      const c = d.data();
+      if(typeof c.duration === 'number'){
+        sessions.push({ durMin: c.duration / 60, ts: tsMs(c.calledAt) });
+      }
+    });
+    sessions.sort((a,b) => b.ts - a.ts);
+    const recentSessions = sessions.slice(0,100);
+    let loyalUsersPct = 100;
+    if(recentSessions.length){
+      loyalUsersPct = (recentSessions.filter(s => s.durMin > 15).length / recentSessions.length) * 100;
+    }
+
+    const satRows = []; satSnap.forEach(d => satRows.push(d.data()));
+    satRows.sort((a,b) => tsMs(b.createdAt) - tsMs(a.createdAt));
+    const recentSat = satRows.slice(0,100);
+    let satisfactionPct = 100;
+    if(recentSat.length){
+      const avgScore = recentSat.reduce((sum,r) => sum + (r.score||0), 0) / recentSat.length;
+      satisfactionPct = (avgScore / 10) * 100;
+    }
+
+    const visibilityScore = (callRatingPct + chatRatingPct + loyalUsersPct + satisfactionPct) / 4;
+    return { visibilityScore, inGracePeriod: false };
+  } catch(e){ return { visibilityScore: 100, inGracePeriod: true }; }
+}
+
+// Cache of { visibilityScore } per astrologer id, recomputed once per astrologers
+// snapshot refresh (batch Promise.all), not per render/keystroke.
+let astroVisibilityScores = {};
+async function refreshAstroVisibilityScores(){
+  const targets = liveAstrologers.filter(a => isAstroVisible(a) && !isAstroBanned(a));
+  const results = await Promise.all(targets.map(a => computeAstroVisibilityScore(a.id, a.createdAt)));
+  const next = {};
+  targets.forEach((a, i) => { next[a.id] = results[i] ? results[i].visibilityScore : 100; });
+  astroVisibilityScores = next;
+  if (typeof renderAstroList === "function") renderAstroList();
+  if (typeof renderMiniAstro === "function") renderMiniAstro();
+}
+function getAstroVisibilityScore(a){
+  return (a && astroVisibilityScores[a.id] != null) ? astroVisibilityScores[a.id] : 100;
+}
+function sortByVisibilityDesc(list){
+  return list.slice().sort((a,b) => getAstroVisibilityScore(b) - getAstroVisibilityScore(a));
+}
+
 function pickAnyAvailableAstrologer(){
   const pool = liveAstrologers.filter(a => isAstroVisible(a) && !isAstroBanned(a));
   if(!pool.length) return null;
@@ -3926,6 +4106,7 @@ db.collection('astrologers').onSnapshot((snap) => {
   liveAstrologers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   checkFollowedOnlineTransitions();
   refreshAstroRatings();
+  refreshAstroVisibilityScores();
   if (typeof renderAstroList === "function") renderAstroList();
   if (typeof renderMiniAstro === "function") renderMiniAstro();
   if (typeof renderLiveList === "function") renderLiveList();
@@ -4425,7 +4606,7 @@ async function fetchTarotYNReading(){
 function renderMiniAstro(){
   const el = document.getElementById("mini-scroll");
   if(!el) return;
-  const list = liveAstrologers.filter(a => isAstroVisible(a) && !isAstroBanned(a)).slice(0,5);
+  const list = sortByVisibilityDesc(liveAstrologers.filter(a => isAstroVisible(a) && !isAstroBanned(a))).slice(0,5);
   if(!list.length){
     el.innerHTML = `<p style="font-size:12.5px; color:var(--ink-faint); padding:6px 4px;">No astrologers are online right now. Please check back soon.</p>`;
     return;
@@ -4715,6 +4896,7 @@ function renderAstroList(){
   if(activeFilter !== "All" && activeFilter !== "Online"){
     list = list.filter(a => specialtyList(a).some(s => s.toLowerCase() === activeFilter.toLowerCase()));
   }
+  list = sortByVisibilityDesc(list);
 
   if(!list.length){
     el.innerHTML = `<div class="empty-state">No astrologers are online right now. Please check back soon.</div>`;
