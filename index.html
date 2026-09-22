@@ -993,6 +993,7 @@ body{
   color:var(--gold-hi); opacity:0.92;
 }
 @keyframes splashPulse{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.045); } }
+.satisfaction-opt{ transition: transform 0.15s ease, box-shadow 0.15s ease; }
 </style>
 </head>
 <body>
@@ -1437,6 +1438,7 @@ body{
         <button class="back-btn" onclick="closeUserChatScreen()"><svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><path d="M15 5 8 12l7 7"/></svg> <span data-i18n="btn_back">Back</span></button>
         <span id="user-chat-title" style="font-weight:700; color:var(--gold-text); margin-left:8px;">Chat</span>
       </div>
+      <span id="cc-call-btn" style="display:none; font-size:19px; margin-right:10px; cursor:pointer;" title="Start an audio call">📞</span>
       <span id="user-end-chat-btn" style="font-size:12px; color:var(--rose); border:1px solid var(--rose); border-radius:14px; padding:5px 12px; cursor:pointer;">End Chat</span>
     </div>
     <div id="user-chat-waiting" class="empty-state" style="display:none; text-align:center; padding:90px 24px 20px; color:var(--ink-faint);">
@@ -1538,6 +1540,49 @@ body{
       <textarea id="review-text" rows="3" placeholder="Tell us about your experience (optional)" style="width:100%; box-sizing:border-box; padding:11px 12px; border-radius:12px; border:1px solid var(--line); background:rgba(255,255,255,0.6); color:var(--ink); font-size:13.5px; font-family:inherit; resize:none; margin-bottom:16px;"></textarea>
       <button id="review-submit-btn" style="width:100%; padding:13px; border-radius:24px; border:none; background:var(--gold); color:#2E1D0C; font-weight:700; font-size:14.5px; cursor:pointer; margin-bottom:10px;">Submit Review</button>
       <div id="review-skip-btn" style="font-size:12.5px; color:var(--ink-faint); cursor:pointer;">Skip</div>
+    </div>
+  </div>
+
+  <!-- ===== In-chat audio call: full overlay, minimized pill, incoming-call popup ===== -->
+  <!-- These live outside the normal screen show/hide system so a call keeps running
+       (and stays reachable) no matter which screen the user navigates to. -->
+  <div id="cc-overlay" style="display:none; position:fixed; inset:0; z-index:400; background:#0C0904; flex-direction:column; align-items:center; justify-content:space-between; padding:50px 24px 40px; text-align:center;">
+    <div style="width:100%; display:flex; justify-content:flex-start;">
+      <span id="cc-minimize-btn" style="font-size:22px; color:#fff; cursor:pointer; padding:6px;">←</span>
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:center;">
+      <img id="cc-photo" style="display:none; width:120px; height:120px; border-radius:50%; object-fit:cover; border:3px solid #D9A94F; margin-bottom:18px;">
+      <div id="cc-photo-empty" style="width:120px; height:120px; border-radius:50%; background:rgba(217,169,79,0.15); display:flex; align-items:center; justify-content:center; font-size:46px; margin-bottom:18px; color:#D9A94F;">🧑‍🔮</div>
+      <div id="cc-name" style="font-family:'Cinzel',serif; font-size:20px; color:#fff; margin-bottom:8px;">Astrologer</div>
+      <div id="cc-status" style="font-size:13.5px; color:#D8D0BF;">Calling...</div>
+    </div>
+    <div id="cc-remote-audio-container" style="display:none;"></div>
+    <div style="display:flex; gap:22px; align-items:center; justify-content:center;">
+      <span id="cc-speaker-btn" style="width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,0.15); color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;">🔊</span>
+      <span id="cc-mute-btn" style="width:54px; height:54px; border-radius:50%; background:rgba(255,255,255,0.15); color:#fff; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center;">🎤</span>
+      <span id="cc-end-btn" style="width:64px; height:64px; border-radius:50%; background:#D64C6B; color:#fff; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center;">📞</span>
+    </div>
+  </div>
+
+  <div id="cc-pill" style="display:none; position:fixed; bottom:90px; right:16px; z-index:400; background:#2E1D0C; color:#fff; border-radius:30px; padding:10px 16px; align-items:center; gap:8px; box-shadow:0 6px 20px rgba(0,0,0,0.35); cursor:pointer;">
+    <span style="font-size:16px;">📞</span>
+    <span id="cc-pill-timer" style="font-size:13px; font-weight:700;">00:00</span>
+  </div>
+
+  <div id="cc-incoming-overlay" style="display:none; position:fixed; inset:0; z-index:410; background:rgba(4,2,1,0.96); flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px;">
+    <img id="cc-in-photo" style="display:none; width:110px; height:110px; border-radius:50%; object-fit:cover; border:3px solid #D9A94F; margin-bottom:16px;">
+    <div id="cc-in-photo-empty" style="width:110px; height:110px; border-radius:50%; background:rgba(217,169,79,0.15); display:flex; align-items:center; justify-content:center; font-size:42px; margin-bottom:16px; color:#D9A94F;">🧑‍🔮</div>
+    <div id="cc-in-name" style="font-family:'Cinzel',serif; font-size:19px; color:#fff; margin-bottom:6px;">Astrologer</div>
+    <div style="font-size:13px; color:#D8D0BF; margin-bottom:30px;">Incoming call...</div>
+    <div style="display:flex; gap:40px;">
+      <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+        <span id="cc-decline-btn" style="width:58px; height:58px; border-radius:50%; background:#D64C6B; display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer;">✕</span>
+        <span style="font-size:11px; color:#D8D0BF;">Decline</span>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+        <span id="cc-accept-btn" style="width:58px; height:58px; border-radius:50%; background:#4CAF6A; display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer;">✓</span>
+        <span style="font-size:11px; color:#D8D0BF;">Accept</span>
+      </div>
     </div>
   </div>
 
@@ -2249,6 +2294,281 @@ body{
     return cleanupAndExitCall(true);
   }
 
+  // ==================================================================
+  // In-chat audio call — lets either side turn an ongoing chat into a
+  // live call without leaving the chat behind. This is intentionally
+  // independent of the screen-navigation system and of the profile/
+  // queue-based call system above (activeCallOrderId etc.): once a call
+  // is ringing/active, its own Firestore listener and its own Agora
+  // client keep running no matter which screen is on top, so navigating
+  // back to the chat, back to home, or leaving the tab in the background
+  // never tears the call down by itself — only pressing "End" does that.
+  // (A call can still be lost if the OS/browser fully kills the tab —
+  // no web app can survive that without a native background service.)
+  // ==================================================================
+  let ccAgoraClient = null;
+  let ccLocalAudioTrack = null;
+  let ccMicOn = true;
+  let ccSpeakerOn = true;
+  let ccChatId = null;
+  let ccJoinedFor = null;
+  let ccMinimized = false;
+  let ccShowingIncomingFor = null;
+  let ccShowingOutgoingFor = null;
+  let ccJoinedAtMs = null;
+  let ccTimerInterval = null;
+  let ccOtherName = 'Astrologer';
+  let ccOtherPhoto = null;
+  let ccChatDocUnsub = null;
+  let ccWatchingChatId = null;
+
+  // Unlike the chat screen's own status listener (userChatUnsubStatus), this watcher
+  // is deliberately NOT torn down by closeUserChatScreen()/going back — a call has to
+  // keep receiving Firestore updates (ringing/active/ended) even after the user leaves
+  // the chat screen entirely, otherwise it could never learn the astrologer hung up.
+  // It's only replaced when a different chat becomes the one being watched.
+  function ccAttachWatcher(chatId) {
+    if (ccWatchingChatId === chatId) return;
+    if (ccChatDocUnsub) { ccChatDocUnsub(); ccChatDocUnsub = null; }
+    ccWatchingChatId = chatId;
+    ccChatDocUnsub = db.collection('chats').doc(chatId).onSnapshot((snap) => {
+      const c = snap.exists ? snap.data() : {};
+      ccHandleChatSnapshot(chatId, c);
+    });
+  }
+
+  // ---- Ring sound for an incoming in-chat call (Web Audio, no external file needed) ----
+  let ccRingInterval = null;
+  function ccStartRing() {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = (window.__ccRingCtx && window.__ccRingCtx.state !== 'closed') ? window.__ccRingCtx : new AudioCtx();
+    window.__ccRingCtx = ctx;
+    if (ctx.state === 'suspended') ctx.resume().catch(()=>{});
+    function playRingBurst() {
+      [480, 620].forEach(freq => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.001, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.11, ctx.currentTime + 0.05);
+        gain.gain.setValueAtTime(0.11, ctx.currentTime + 1.9);
+        gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + 2.0);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 2.0);
+      });
+    }
+    playRingBurst();
+    ccRingInterval = setInterval(playRingBurst, 3000);
+  }
+  function ccStopRing() {
+    if (ccRingInterval) { clearInterval(ccRingInterval); ccRingInterval = null; }
+    if (window.__ccRingCtx) { window.__ccRingCtx.close(); window.__ccRingCtx = null; }
+  }
+
+  function ccSetPeopleInfo(name, photo) {
+    ccOtherName = name || 'Astrologer';
+    ccOtherPhoto = photo || null;
+    document.getElementById('cc-name').textContent = ccOtherName;
+    document.getElementById('cc-in-name').textContent = ccOtherName;
+    ['cc-photo', 'cc-in-photo'].forEach((imgId, i) => {
+      const emptyId = i === 0 ? 'cc-photo-empty' : 'cc-in-photo-empty';
+      const img = document.getElementById(imgId);
+      const empty = document.getElementById(emptyId);
+      if (ccOtherPhoto) { img.src = ccOtherPhoto; img.style.display = 'block'; empty.style.display = 'none'; }
+      else { img.style.display = 'none'; empty.style.display = 'flex'; }
+    });
+  }
+
+  function ccFormatTime(sec) {
+    const m = Math.floor(sec / 60), s = sec % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  function ccStartTimer() {
+    ccJoinedAtMs = Date.now();
+    if (ccTimerInterval) clearInterval(ccTimerInterval);
+    ccTimerInterval = setInterval(() => {
+      const sec = Math.floor((Date.now() - ccJoinedAtMs) / 1000);
+      const t = ccFormatTime(sec);
+      document.getElementById('cc-status').textContent = 'Connected ' + t;
+      document.getElementById('cc-pill-timer').textContent = t;
+    }, 1000);
+  }
+
+  function ccShowFull() {
+    ccMinimized = false;
+    document.getElementById('cc-overlay').style.display = 'flex';
+    document.getElementById('cc-pill').style.display = 'none';
+  }
+  function ccMinimizeCall() {
+    if (!ccJoinedFor && !ccShowingOutgoingFor) return;
+    ccMinimized = true;
+    document.getElementById('cc-overlay').style.display = 'none';
+    document.getElementById('cc-pill').style.display = 'flex';
+  }
+
+  // Tap the 📞 button in an open chat's header to start a call.
+  window.ccStartCall = async function() {
+    if (!window.currentUserChatId) return;
+    if (ccChatId || ccJoinedFor || ccShowingOutgoingFor) { ccShowFull(); return; }
+    const chatId = window.currentUserChatId;
+    ccChatId = chatId;
+    ccShowingOutgoingFor = chatId;
+    ccSetPeopleInfo(window.currentUserChatAstroName, null);
+    document.getElementById('cc-status').textContent = 'Calling...';
+    ccShowFull();
+    try {
+      await db.collection('chats').doc(chatId).update({
+        callStatus: 'ringing', callStartedBy: 'user', callRingAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      alert('Could not start the call: ' + e.message);
+      ccShowingOutgoingFor = null; ccChatId = null;
+      document.getElementById('cc-overlay').style.display = 'none';
+    }
+  };
+
+  async function ccJoinAgora(chatId) {
+    ccJoinedFor = chatId;
+    ccShowingOutgoingFor = null;
+    ccShowingIncomingFor = null;
+    document.getElementById('cc-incoming-overlay').style.display = 'none';
+    ccStopRing();
+    document.getElementById('cc-status').textContent = 'Connecting...';
+    if (!ccMinimized) ccShowFull(); else document.getElementById('cc-pill').style.display = 'flex';
+    try {
+      const tokenRes = await fetch(`${AGORA_BACKEND_URL}/api/agora-token`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channelName: 'chat_' + chatId, uid: 0 })
+      });
+      const tokenData = await tokenRes.json();
+      if (!tokenRes.ok) throw new Error(tokenData.error || 'Could not get call token');
+      ccAgoraClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+      ccAgoraClient.on('user-published', async (user, mediaType) => {
+        await ccAgoraClient.subscribe(user, mediaType);
+        if (mediaType === 'audio') user.audioTrack.play();
+      });
+      await ccAgoraClient.join(tokenData.appId, 'chat_' + chatId, tokenData.token, tokenData.uid || null);
+      ccLocalAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+      await ccAgoraClient.publish([ccLocalAudioTrack]);
+      ccStartTimer();
+    } catch (err) {
+      document.getElementById('cc-status').textContent = 'Call error: ' + err.message;
+    }
+  }
+
+  async function ccLocalCleanup() {
+    if (ccTimerInterval) { clearInterval(ccTimerInterval); ccTimerInterval = null; }
+    ccStopRing();
+    try {
+      if (ccLocalAudioTrack) { ccLocalAudioTrack.close(); ccLocalAudioTrack = null; }
+      if (ccAgoraClient) { await ccAgoraClient.leave(); ccAgoraClient = null; }
+    } catch (e) { /* ignore */ }
+    ccChatId = null; ccJoinedFor = null; ccShowingIncomingFor = null; ccShowingOutgoingFor = null;
+    ccMinimized = false; ccJoinedAtMs = null;
+    document.getElementById('cc-overlay').style.display = 'none';
+    document.getElementById('cc-pill').style.display = 'none';
+    document.getElementById('cc-incoming-overlay').style.display = 'none';
+  }
+
+  window.ccAcceptIncoming = async function() {
+    if (!ccShowingIncomingFor) return;
+    const chatId = ccShowingIncomingFor;
+    try {
+      await db.collection('chats').doc(chatId).update({ callStatus: 'active', callAcceptedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    } catch (e) { alert('Could not accept the call: ' + e.message); }
+  };
+  window.ccDeclineIncoming = async function() {
+    if (!ccShowingIncomingFor) return;
+    const chatId = ccShowingIncomingFor;
+    try {
+      await db.collection('chats').doc(chatId).update({ callStatus: 'ended', callEndedAt: firebase.firestore.FieldValue.serverTimestamp(), callEndedReason: 'declined' });
+    } catch (e) { /* ignore */ }
+  };
+  window.ccEndCall = async function() {
+    const chatId = ccChatId || ccJoinedFor;
+    if (!chatId) return;
+    const durationSec = ccJoinedAtMs ? Math.round((Date.now() - ccJoinedAtMs) / 1000) : 0;
+    try {
+      await db.collection('chats').doc(chatId).update({ callStatus: 'ended', callEndedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      if (durationSec > 0) {
+        const chatSnap = await db.collection('chats').doc(chatId).get();
+        const cd = chatSnap.exists ? chatSnap.data() : {};
+        const uid = auth.currentUser ? auth.currentUser.uid : null;
+        await db.collection('calls').add({
+          astrologerId: cd.astrologerId || null, userId: uid, userName: localStorage.getItem('aangan_user_name') || 'User',
+          type: 'call', duration: durationSec, calledAt: firebase.firestore.FieldValue.serverTimestamp(), fromChat: true, chatId
+        });
+      }
+    } catch (e) { /* ignore */ }
+    await ccLocalCleanup();
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const ccCallBtn = document.getElementById('cc-call-btn');
+    if (ccCallBtn) ccCallBtn.addEventListener('click', window.ccStartCall);
+    document.getElementById('cc-minimize-btn').addEventListener('click', ccMinimizeCall);
+    document.getElementById('cc-pill').addEventListener('click', ccShowFull);
+    document.getElementById('cc-end-btn').addEventListener('click', window.ccEndCall);
+    document.getElementById('cc-accept-btn').addEventListener('click', window.ccAcceptIncoming);
+    document.getElementById('cc-decline-btn').addEventListener('click', window.ccDeclineIncoming);
+    document.getElementById('cc-mute-btn').addEventListener('click', async () => {
+      ccMicOn = !ccMicOn;
+      if (ccLocalAudioTrack) await ccLocalAudioTrack.setEnabled(ccMicOn);
+      document.getElementById('cc-mute-btn').style.background = ccMicOn ? 'rgba(255,255,255,0.15)' : '#D64C6B';
+    });
+    document.getElementById('cc-speaker-btn').addEventListener('click', async () => {
+      ccSpeakerOn = !ccSpeakerOn;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const outputs = devices.filter(d => d.kind === 'audiooutput');
+        const target = ccSpeakerOn
+          ? outputs.find(d => /speaker/i.test(d.label))
+          : outputs.find(d => /ear|receiver|default/i.test(d.label));
+        const audioEl = document.querySelector('#cc-remote-audio-container audio, audio');
+        if (audioEl && target && audioEl.setSinkId) await audioEl.setSinkId(target.deviceId);
+      } catch (e) { /* not supported on this device/browser */ }
+      document.getElementById('cc-speaker-btn').style.background = ccSpeakerOn ? 'rgba(255,255,255,0.15)' : '#4E8FC4';
+    });
+  });
+
+  // Watches a specific chat document for call-state changes (ringing / active / ended)
+  // for as long as that chat is the one open in the chat screen — attached from inside
+  // openUserChatThread's own status listener so it keeps firing in the background even
+  // after navigating away from the chat screen, and is only replaced when a different
+  // chat is opened.
+  function ccHandleChatSnapshot(chatId, c) {
+    const callStatus = c.callStatus || 'none';
+    const ccBtn = document.getElementById('cc-call-btn');
+    if (ccBtn) ccBtn.style.display =
+      (c.status === 'active' && callStatus !== 'ringing' && callStatus !== 'active') ? 'inline-block' : 'none';
+
+    if (callStatus === 'ringing') {
+      if (c.callStartedBy === 'user') {
+        // My own outgoing ring — nothing else to do, ccStartCall already showed the UI.
+      } else if (ccShowingIncomingFor !== chatId && ccJoinedFor !== chatId) {
+        ccShowingIncomingFor = chatId;
+        ccSetPeopleInfo(window.currentUserChatAstroName || 'Astrologer', null);
+        document.getElementById('cc-incoming-overlay').style.display = 'flex';
+        ccStartRing();
+      }
+      return;
+    }
+    if (callStatus === 'active') {
+      if (ccJoinedFor !== chatId) {
+        ccChatId = chatId;
+        ccJoinAgora(chatId);
+      }
+      return;
+    }
+    if (ccJoinedFor === chatId || ccShowingIncomingFor === chatId || ccShowingOutgoingFor === chatId) {
+      ccLocalCleanup();
+    }
+  }
+
   // ---- Remedy Chat (shared thread between user and assigned astrologer) ----
   let remedyChatUnsubMsgs = null;
 
@@ -2571,13 +2891,22 @@ body{
   let satisfactionSelectedScore = null;
   let satisfactionContext = null; // { astrologerId, sessionId, sessionType, userId, userName }
 
+  // 0 = red (least satisfied) smoothly through to 10 = green (most satisfied).
+  function satisfactionScoreColor(score) {
+    const hue = (score / 10) * 120; // 0=red, 120=green
+    return `hsl(${hue}, 68%, 48%)`;
+  }
+
   function promptForSatisfaction(ctx) {
     satisfactionContext = ctx;
     satisfactionSelectedScore = null;
     document.querySelectorAll('.satisfaction-opt').forEach(s => {
-      s.style.background = 'rgba(255,255,255,0.5)';
-      s.style.color = 'var(--ink-faint)';
-      s.style.borderColor = 'var(--line)';
+      const score = parseInt(s.dataset.score, 10);
+      s.style.background = satisfactionScoreColor(score);
+      s.style.color = '#fff';
+      s.style.borderColor = 'transparent';
+      s.style.transform = 'scale(1)';
+      s.style.boxShadow = 'none';
     });
     document.getElementById('satisfaction-overlay').style.display = 'flex';
   }
@@ -2648,10 +2977,13 @@ body{
       optEl.addEventListener('click', () => {
         satisfactionSelectedScore = parseInt(optEl.dataset.score, 10);
         document.querySelectorAll('.satisfaction-opt').forEach(s => {
+          // Keep each circle's own red-to-green color always — selection is shown
+          // with a ring + slight scale-up instead of replacing the color, so the
+          // 0-10 scale stays visually meaningful the whole time.
           const selected = parseInt(s.dataset.score, 10) === satisfactionSelectedScore;
-          s.style.background = selected ? 'var(--gold)' : 'rgba(255,255,255,0.5)';
-          s.style.color = selected ? '#2E1D0C' : 'var(--ink-faint)';
-          s.style.borderColor = selected ? 'var(--gold)' : 'var(--line)';
+          s.style.transform = selected ? 'scale(1.18)' : 'scale(1)';
+          s.style.boxShadow = selected ? '0 0 0 3px rgba(46,29,12,0.35)' : 'none';
+          s.style.borderColor = 'transparent';
         });
       });
     });
@@ -3108,6 +3440,7 @@ body{
 
     if (userChatUnsubMessages) userChatUnsubMessages();
     if (userChatUnsubStatus) userChatUnsubStatus();
+    ccAttachWatcher(chatId);
     userChatUnsubStatus = db.collection('chats').doc(chatId).onSnapshot((chatSnap) => {
       const c=chatSnap.exists?chatSnap.data():{};
       const ended=c.status==='ended'; const active=c.status==='active'; const waiting=!active&&!ended;
@@ -3130,6 +3463,9 @@ body{
       document.getElementById('user-chat-send').disabled = !active;
       document.getElementById('user-end-chat-btn').style.display = (active||waiting) ? 'block' : 'none';
       if(waiting) document.getElementById('user-chat-input').placeholder='Waiting for you to accept the chat...'; else document.getElementById('user-chat-input').placeholder='Type a message...';
+      // Call-state handling itself lives in the separate, screen-independent
+      // ccAttachWatcher listener below (see openUserChatThread), so it keeps
+      // working even after this screen-scoped listener's DOM updates stop mattering.
     });
     const threadOpenedAt = Date.now();
     userChatUnsubMessages = db.collection('chats').doc(chatId).collection('messages')
@@ -3612,6 +3948,7 @@ body{
       if (!confirm('End this chat?')) return;
       const cid=window.currentUserChatId;
       const uname=localStorage.getItem('aangan_user_name') || 'User';
+      if (ccChatId === cid || ccJoinedFor === cid) { try { await window.ccEndCall(); } catch (e) { /* ignore */ } }
       await db.collection('chats').doc(cid).update({status:'ended',endReason:'user',endedByType:'user',endedByName:uname,endedAt:firebase.firestore.FieldValue.serverTimestamp()});
       await db.collection('chats').doc(cid).collection('messages').add({text:`This chat has been ended due to ${uname}.`,senderType:'system',endReason:'user',sentAt:firebase.firestore.FieldValue.serverTimestamp()});
       window.currentUserChatId = null;
