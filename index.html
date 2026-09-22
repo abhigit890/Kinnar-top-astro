@@ -1829,6 +1829,18 @@ body{
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
     } else {
+      // Stop every listener that was only valid for the signed-in user — once
+      // signed out, their security-rule checks start failing ("Missing or
+      // insufficient permissions"), and the remedy-ring listener specifically
+      // shows that as an alert() popup, which was blocking the login screen
+      // after logout. Tear these down here instead of letting them fail.
+      if (remedyRingUnsub) { remedyRingUnsub(); remedyRingUnsub = null; }
+      currentIncomingRemedyOrderId = null;
+      stopRemedyRingSound();
+      const remedyOverlay = document.getElementById('incoming-remedy-overlay');
+      if (remedyOverlay) remedyOverlay.style.display = 'none';
+      if (typeof ccChatDocUnsub === 'function') { ccChatDocUnsub(); ccChatDocUnsub = null; }
+      if (typeof ccWatchingChatId !== 'undefined') ccWatchingChatId = null;
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-auth').classList.add('active');
     }
