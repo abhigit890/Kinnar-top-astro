@@ -7274,6 +7274,7 @@ async function confirmRemedy(remedyName){
       callStatus: 'pending',
       callDurationSeconds: 0,
       completionStatus: 'none',
+      assignedAstrologerId: null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast(`${remedyName} requested! We'll reach out to you shortly.`);
@@ -7299,6 +7300,7 @@ async function buyRemedyFromChat(remedyId, remedyName){
       callStatus: 'pending',
       callDurationSeconds: 0,
       completionStatus: 'none',
+      assignedAstrologerId: null,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     showToast(`${remedyName} requested! We'll reach out to you shortly.`);
