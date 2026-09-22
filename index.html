@@ -1834,6 +1834,27 @@ body{
     }
   });
 
+  // ---- Logout ----
+  // Ends any in-chat call the user is currently on (so it doesn't stay stuck
+  // "active" for the astrologer), then fully signs out. The existing
+  // onAuthStateChanged listener above already takes care of hiding every
+  // screen and showing screen-auth (email/password + Google) once the
+  // auth state flips to signed-out.
+  window.userLogout = async function() {
+    window.__loggingOut = true;
+    try {
+      if (typeof ccChatId !== 'undefined' && (ccChatId || ccJoinedFor)) {
+        await window.ccEndCall();
+      }
+    } catch (e) { /* non-fatal */ }
+    try {
+      await auth.signOut();
+    } catch (e) {
+      showToast('Logout failed: ' + e.message);
+    }
+    window.__loggingOut = false;
+  };
+
   document.getElementById('auth-google-btn').addEventListener('click', async () => {
     document.getElementById('auth-error').textContent = '';
     try {
@@ -2461,6 +2482,7 @@ body{
   }
 
   async function ccLocalCleanup() {
+    const endedChatId = ccChatId || ccJoinedFor;
     if (ccTimerInterval) { clearInterval(ccTimerInterval); ccTimerInterval = null; }
     ccStopRing();
     try {
@@ -2472,6 +2494,12 @@ body{
     document.getElementById('cc-overlay').style.display = 'none';
     document.getElementById('cc-pill').style.display = 'none';
     document.getElementById('cc-incoming-overlay').style.display = 'none';
+    // Whenever a call ends (for any reason), bring the user back to that chat's window —
+    // even if they'd minimized the call and wandered off to another screen — so they
+    // land right where any automated end-of-chat message would show up.
+    if (endedChatId && !window.__loggingOut) {
+      try { openUserChatThread(endedChatId); } catch (e) { /* non-fatal */ }
+    }
   }
 
   window.ccAcceptIncoming = async function() {
@@ -4613,7 +4641,7 @@ const MENU_ITEMS_2 = [
   { icon:"gift", label:"Refer & Earn" },
   { icon:"help", label:"Help & Support", action:"helpSupport" },
   { icon:"doc", label:"Terms & Privacy" },
-  { icon:"logout", label:"Logout" },
+  { icon:"logout", label:"Logout", action:"userLogout" },
 ];
 
 /* ---------------- RENDER ---------------- */
@@ -5463,7 +5491,7 @@ function closeRemedyCategory(){
 }
 
 function renderMenus(){
-  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openSupportList()", transactionHistory: "openTransactionHistory()", myBookings: "openMyBookings()" };
+  const menuActionMap = { kundliSettings: "openKundliSettings()", appLanguage: "openLanguagePicker()", chatHistory: "openUserChatsList()", helpSupport: "openSupportList()", transactionHistory: "openTransactionHistory()", myBookings: "openMyBookings()", userLogout: "userLogout()" };
   document.getElementById("menu-list").innerHTML = MENU_ITEMS_1.map(m => `
     <div class="menu-item" ${menuActionMap[m.action] ? `onclick="${menuActionMap[m.action]}"` : ''}><span class="menu-ic">${svg(m.icon,17)}</span>${m.label}<span class="arrow">›</span></div>
   `).join("");
