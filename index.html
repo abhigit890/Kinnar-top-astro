@@ -1773,6 +1773,26 @@ body{
     </div>
   </div>
 
+  <!-- ================= RECHARGE (insufficient balance) ================= -->
+  <div class="overlay" id="overlay-recharge" onclick="closeOverlayBg(event,'overlay-recharge')">
+    <div class="sheet" style="position:relative;">
+      <div class="sheet-close" onclick="closeOverlay('overlay-recharge')">✕</div>
+      <div class="sheet-handle"></div>
+      <h2 style="font-size:17px; color:var(--gold-text); margin:0 0 4px;">Recharge to continue</h2>
+      <p id="rc-sub" style="font-size:12.5px; color:var(--ink-faint); margin:0 0 16px;">Your wallet balance is ₹0. Add balance to start.</p>
+      <div id="rc-options" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;"></div>
+      <div id="rc-summary" style="display:none; background:rgba(217,169,79,0.10); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:14px; font-size:13px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span>Recharge amount</span><span id="rc-base-amt">₹0</span></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px; color:var(--ink-faint);"><span>GST (18%)</span><span id="rc-gst-amt">₹0</span></div>
+        <div style="display:flex; justify-content:space-between; font-weight:700; color:var(--gold-text); border-top:1px dashed var(--line); padding-top:6px; margin-top:6px;"><span>Total payable</span><span id="rc-total-amt">₹0</span></div>
+      </div>
+      <button class="banner-btn" id="rc-pay-btn" onclick="payForRecharge()" style="width:100%; opacity:.45; pointer-events:none;">
+        <span class="blabel">Select an amount</span>
+      </button>
+      <p style="font-size:11px; color:var(--ink-faint); text-align:center; margin-top:10px;">Online payment is coming soon. This is a preview of how recharge will work.</p>
+    </div>
+  </div>
+
   <!-- ================= REMEDY BOOKING SHEET ================= -->
   <div class="overlay" id="overlay-remedy" onclick="closeOverlayBg(event,'overlay-remedy')">
     <div class="sheet" style="position:relative;">
@@ -3284,9 +3304,69 @@ body{
     return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
   }
 
-  function openChatKundliForm(astroId, type) {
+  // ---- Recharge (insufficient balance) prototype ----
+  // No payment gateway exists yet, so this only previews the UI/UX: the
+  // minimum option is always exactly 5 minutes of this astrologer's
+  // per-minute price, followed by whichever of the standard denominations
+  // (200/500/1000/2000/5000/10000) are bigger than that minimum.
+  function computeRechargeTiers(price) {
+    const min = Math.max(1, Math.round((price || 0) * 5));
+    const fixedTiers = [200, 500, 1000, 2000, 5000, 10000];
+    const extra = fixedTiers.filter(t => t > min);
+    return [min, ...extra];
+  }
+
+  let rcSelectedAmount = null;
+
+  function openRechargeScreen(price, type) {
+    rcSelectedAmount = null;
+    const priceNum = price || 0;
+    document.getElementById('rc-sub').textContent =
+      `Your wallet balance is ₹${Number(window.walletBalance || 0).toFixed(0)}. This astrologer charges ₹${priceNum}/min for ${type === 'chat' ? 'chat' : 'calls'} — recharge to start.`;
+    const tiers = computeRechargeTiers(priceNum);
+    document.getElementById('rc-options').innerHTML = tiers.map((amt, i) => `
+      <button type="button" class="rc-opt" data-amt="${amt}" onclick="selectRechargeAmount(${amt}, this)" style="padding:14px 10px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); font-weight:700; color:var(--ink-dim); cursor:pointer; text-align:center;">
+        ₹${amt}
+        ${i === 0 ? `<div style="font-size:10px; font-weight:600; color:var(--ink-faint); margin-top:2px;">Min · ~5 min</div>` : ''}
+      </button>
+    `).join('');
+    document.getElementById('rc-summary').style.display = 'none';
+    const payBtn = document.getElementById('rc-pay-btn');
+    payBtn.style.opacity = '.45';
+    payBtn.style.pointerEvents = 'none';
+    payBtn.querySelector('.blabel').textContent = 'Select an amount';
+    document.getElementById('overlay-recharge').classList.add('show');
+  }
+
+  window.selectRechargeAmount = function(amt, btnEl) {
+    rcSelectedAmount = amt;
+    document.querySelectorAll('#rc-options .rc-opt').forEach(b => {
+      b.style.borderColor = 'var(--line)';
+      b.style.background = 'var(--card)';
+    });
+    btnEl.style.borderColor = 'var(--gold)';
+    btnEl.style.background = 'rgba(217,169,79,0.14)';
+    const gst = amt * 0.18;
+    const total = amt + gst;
+    document.getElementById('rc-base-amt').textContent = '₹' + amt;
+    document.getElementById('rc-gst-amt').textContent = '₹' + gst.toFixed(2);
+    document.getElementById('rc-total-amt').textContent = '₹' + total.toFixed(2);
+    document.getElementById('rc-summary').style.display = 'block';
+    const payBtn = document.getElementById('rc-pay-btn');
+    payBtn.style.opacity = '1';
+    payBtn.style.pointerEvents = 'auto';
+    payBtn.querySelector('.blabel').textContent = `Pay ₹${total.toFixed(2)}`;
+  };
+
+  window.payForRecharge = function() {
+    if (!rcSelectedAmount) return;
+    showToast('Online recharge (UPI/Card) is being set up — coming very soon!');
+  };
+
+  function openChatKundliForm(astroId, type, price) {
     window.pendingKundliAstroId = astroId || null;
     window.pendingKundliRequestType = type || 'chat';
+    window.pendingKundliAstroPrice = price || 0;
     const submitLabelEl = document.getElementById('ck-submit-label');
     if (submitLabelEl) {
       submitLabelEl.textContent = (type === 'video') ? 'Start Video Call' : (type === 'call') ? 'Start Call' : 'Start Chat';
@@ -3356,6 +3436,10 @@ body{
 
     if (name) localStorage.setItem('aangan_user_name', name);
     closeOverlay('overlay-chat-kundli');
+    if ((window.walletBalance || 0) <= 0) {
+      openRechargeScreen(window.pendingKundliAstroPrice, window.pendingKundliRequestType);
+      return;
+    }
     sendRequestToAstrologer(window.pendingKundliRequestType || 'chat', { selfDetails, partnerDetails }, window.pendingKundliAstroId);
   }
 
@@ -5684,8 +5768,8 @@ function openDetail(id){
     </div>
 
     <div class="sticky-actions">
-      <button class="act-secondary banner-btn" id="astro-call-btn" ${(a.callOnline && !isAstroBanned(a)) ? `onclick="openChatKundliForm('${a.id}', 'call')"` : 'disabled style="opacity:.45;pointer-events:none;"'}>${bannerInner(svg('phone',15) + " Call ₹" + (a.price||0) + "/min")}</button>
-      <button class="act-primary banner-btn" id="astro-chat-btn" ${(a.chatOnline && !isAstroBanned(a)) ? `onclick="openChatKundliForm('${a.id}', 'chat')"` : 'disabled style="opacity:.45;pointer-events:none;"'}>${bannerInner(svg('chat',15) + " Chat ₹" + (a.price||0) + "/min")}</button>
+      <button class="act-secondary banner-btn" id="astro-call-btn" ${(a.callOnline && !isAstroBanned(a)) ? `onclick="openChatKundliForm('${a.id}', 'call', ${a.price||0})"` : 'disabled style="opacity:.45;pointer-events:none;"'}>${bannerInner(svg('phone',15) + " Call ₹" + (a.price||0) + "/min")}</button>
+      <button class="act-primary banner-btn" id="astro-chat-btn" ${(a.chatOnline && !isAstroBanned(a)) ? `onclick="openChatKundliForm('${a.id}', 'chat', ${a.price||0})"` : 'disabled style="opacity:.45;pointer-events:none;"'}>${bannerInner(svg('chat',15) + " Chat ₹" + (a.price||0) + "/min")}</button>
     </div>
     ${(!a.callOnline || !a.chatOnline || isAstroBanned(a)) ? `<p style="text-align:center; font-size:11.5px; color:var(--ink-faint); padding:0 16px 90px; margin-top:-80px;">${
       isAstroBanned(a) ? 'This astrologer is currently unavailable.' : ((!a.callOnline && !a.chatOnline) ? 'This astrologer is currently offline.' : (!a.chatOnline ? 'Currently offline for chat.' : 'Currently offline for calls.'))
