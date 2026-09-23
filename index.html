@@ -1806,6 +1806,14 @@ body{
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
   const db = firebase.firestore();
+  // Kinnar Talk's User App, Astrologer App and Admin Panel are all hosted
+  // under the same GitHub Pages origin (different paths only), so by default
+  // they'd share one browser-wide Firebase Auth session — logging out of any
+  // one of them would sign the others out too, since Firebase Auth
+  // broadcasts sign-in/sign-out across every tab of the same origin. Session
+  // persistence scopes each tab's login to that tab alone, so this app's
+  // login/logout never affects the other two apps' tabs.
+  auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {});
 
   // Anonymous sign-in so every user gets a stable ID without OTP/password
   // ---- Real login (Email/Password + Google) ----
@@ -1871,6 +1879,9 @@ body{
     document.getElementById('auth-error').textContent = '';
     try {
       const provider = new firebase.auth.GoogleAuthProvider();
+      // Always show Google's account-chooser instead of silently signing
+      // back in with whichever Google account was used last on this device.
+      provider.setCustomParameters({ prompt: 'select_account' });
       await auth.signInWithPopup(provider);
     } catch (err) {
       document.getElementById('auth-error').textContent = err.message;
