@@ -1884,6 +1884,10 @@ body{
       if (typeof ccWatchingChatId !== 'undefined') ccWatchingChatId = null;
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.getElementById('screen-auth').classList.add('active');
+      // The bottom nav bar is only meant to show once someone is signed in and
+      // browsing the app — hide it behind the login screen too, the same way
+      // every other sub-screen (chat, settings, etc.) already hides it.
+      document.getElementById('bottom-nav').classList.add('nav-hidden');
     }
   });
 
