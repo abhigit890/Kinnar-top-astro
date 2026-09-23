@@ -1453,12 +1453,25 @@ body{
     </div>
     <div id="user-chat-body" style="display:none; padding:64px 14px 90px; display:flex; flex-direction:column; gap:8px;"></div>
     <div id="user-chat-input-bar" style="display:none; position:fixed; bottom:0; left:0; right:0; max-width:inherit; gap:8px; padding:10px 14px; background:var(--bg-soft); border-top:1px solid var(--line); align-items:center;">
-      <div style="flex:1; display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:24px; border:1px solid var(--line); background:rgba(255,255,255,0.6);">
+      <div id="uc-input-pill" style="flex:1; display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:24px; border:1px solid var(--line); background:rgba(255,255,255,0.6); min-width:0;">
         <span id="uc-photo-btn" style="font-size:19px; cursor:pointer; flex-shrink:0;">🖼️</span>
         <input type="text" id="user-chat-input" placeholder="Type a message..." style="flex:1; min-width:0; border:none; background:transparent; outline:none; color:var(--ink); font-size:14px; padding:6px 0;">
       </div>
+      <div id="uc-voice-rec-pill" style="display:none; flex:1; align-items:center; gap:8px; padding:6px 12px; min-width:0; border-radius:24px; border:1px solid var(--line); background:rgba(255,255,255,0.6);">
+        <span style="width:9px; height:9px; border-radius:50%; background:var(--rose); animation:tRecPulse 1s ease-in-out infinite; flex-shrink:0;"></span>
+        <span id="uc-voice-timer" style="font-size:13.5px; font-weight:700; color:var(--ink); flex-shrink:0; font-variant-numeric:tabular-nums;">0:00</span>
+        <span style="flex:1; min-width:0; display:flex; align-items:center; justify-content:flex-end; gap:4px; font-size:12px; color:var(--ink-faint); white-space:nowrap; overflow:hidden;">
+          <svg class="svgic" viewBox="0 0 24 24" width="13" height="13" stroke-width="2.6"><polyline points="15 18 9 12 15 6"/></svg>
+          Slide to cancel
+        </span>
+      </div>
       <input type="file" id="uc-photo-input" accept="image/*" style="display:none;">
-      <button id="uc-voice-btn" style="width:42px; height:42px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:16px; cursor:pointer; flex-shrink:0;">🎤</button>
+      <div id="uc-voice-delete-zone" style="position:absolute; right:14px; top:50%; transform:translateY(-50%); width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--rose); opacity:0; pointer-events:none;">
+        <svg class="svgic" viewBox="0 0 24 24" width="18" height="18"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </div>
+      <button id="uc-voice-btn" style="width:42px; height:42px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; position:relative; z-index:1; touch-action:none; user-select:none; -webkit-user-select:none;">
+        <svg class="svgic" viewBox="0 0 24 24" width="19" height="19" style="color:#2E1D0C;"><path d="M12 1a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
       <button id="user-chat-send" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--gold); color:#2E1D0C; font-size:18px; cursor:pointer; flex-shrink:0;">➤</button>
     </div>
   </section>
@@ -3810,7 +3823,7 @@ body{
               window.__astroProfileCache[c.astrologerId] = p;
             }
             astroName = p.name || astroName;
-            astroPhoto = p.photoURL || p.photo || '';
+            astroPhoto = p.profilePhoto || p.photoURL || p.photo || '';
           }
           return { c, astroName, astroPhoto };
         }));
@@ -4092,23 +4105,42 @@ body{
       reader.readAsDataURL(file);
     });
 
-    let ucMediaRecorder = null;
-    let ucRecordedChunks = [];
-    const ucVoiceBtn = document.getElementById('uc-voice-btn');
-    if (ucVoiceBtn) ucVoiceBtn.addEventListener('click', async () => {
-      if (ucMediaRecorder && ucMediaRecorder.state === 'recording') {
-        ucMediaRecorder.stop();
-        ucVoiceBtn.textContent = '🎤';
-        return;
+    // Voice message — WhatsApp-style: hold the mic button to record, release to
+    // send, or slide your finger left off the button to cancel and discard it.
+    (function setupUcHoldToRecordMic() {
+      const micBtn = document.getElementById('uc-voice-btn');
+      const pillEl = document.getElementById('uc-input-pill');
+      const recPillEl = document.getElementById('uc-voice-rec-pill');
+      const timerEl = document.getElementById('uc-voice-timer');
+      const sendBtn = document.getElementById('user-chat-send');
+      const deleteZoneEl = document.getElementById('uc-voice-delete-zone');
+      if (!micBtn) return;
+      const CANCEL_PX = 90;
+
+      let mediaRecorder = null, recordedChunks = [], stream = null;
+      let recording = false, cancelled = false, startX = 0, startedAt = 0, timerInt = null;
+
+      function fmt(ms) {
+        const s = Math.floor(ms / 1000), m = Math.floor(s / 60), ss = s % 60;
+        return m + ':' + (ss < 10 ? '0' : '') + ss;
       }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        ucMediaRecorder = new MediaRecorder(stream);
-        ucRecordedChunks = [];
-        ucMediaRecorder.ondataavailable = (e) => ucRecordedChunks.push(e.data);
-        ucMediaRecorder.onstop = async () => {
+
+      async function begin() {
+        if (recording) return;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (e) {
+          showToast('Microphone access is needed to send a voice message.');
+          return;
+        }
+        recording = true; cancelled = false;
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
+        mediaRecorder.onstop = () => {
           stream.getTracks().forEach(t => t.stop());
-          const blob = new Blob(ucRecordedChunks, { type: 'audio/webm' });
+          if (cancelled || !recordedChunks.length) return;
+          const blob = new Blob(recordedChunks, { type: 'audio/webm' });
           const reader = new FileReader();
           reader.onload = async () => {
             if (!window.currentUserChatId) return;
@@ -4121,12 +4153,50 @@ body{
           };
           reader.readAsDataURL(blob);
         };
-        ucMediaRecorder.start();
-        ucVoiceBtn.textContent = '⏹️';
-      } catch (e) {
-        showToast('Microphone access is needed to send a voice message.');
+        mediaRecorder.start();
+        startedAt = Date.now();
+        pillEl.style.display = 'none';
+        sendBtn.style.display = 'none';
+        recPillEl.style.display = 'flex';
+        micBtn.style.background = 'var(--rose)';
+        micBtn.style.boxShadow = '0 0 0 6px rgba(196,87,126,0.16)';
+        timerEl.textContent = '0:00';
+        timerInt = setInterval(() => { timerEl.textContent = fmt(Date.now() - startedAt); }, 200);
       }
-    });
+
+      function finish(didCancel) {
+        if (!recording) return;
+        recording = false;
+        cancelled = didCancel;
+        clearInterval(timerInt);
+        micBtn.style.background = 'var(--gold)';
+        micBtn.style.boxShadow = '';
+        micBtn.style.transform = '';
+        deleteZoneEl.style.opacity = '0';
+        pillEl.style.display = '';
+        sendBtn.style.display = '';
+        recPillEl.style.display = 'none';
+        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+      }
+
+      micBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        try { micBtn.setPointerCapture(e.pointerId); } catch (err) {}
+        begin();
+      });
+      micBtn.addEventListener('pointermove', (e) => {
+        if (!recording) return;
+        const dx = e.clientX - startX;
+        if (dx >= 0) { micBtn.style.transform = ''; deleteZoneEl.style.opacity = '0'; return; }
+        const dist = Math.min(Math.abs(dx), CANCEL_PX + 20);
+        micBtn.style.transform = `translateX(${-dist}px)`;
+        deleteZoneEl.style.opacity = String(Math.min(1, dist / CANCEL_PX));
+        if (Math.abs(dx) > CANCEL_PX) finish(true);
+      });
+      micBtn.addEventListener('pointerup', () => finish(false));
+      micBtn.addEventListener('pointercancel', () => finish(true));
+    })();
 
     const endBtn = document.getElementById('user-end-chat-btn');
     if (endBtn) endBtn.addEventListener('click', async () => {
