@@ -2822,17 +2822,26 @@ body{
         const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();
       } else if(r.queueStatus==='user_accepted'){
         hideUserChatIncoming(); const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();
+        // The wait is over — window.currentUserChatId / activeCallOrderId
+        // take over as the "busy" flag from here, so this must be cleared or
+        // the one-request-at-a-time guard would block every future request
+        // forever once this chat/call eventually ends.
+        window.currentQueueRequestId = null;
         if(window.currentQueueType==='chat') openUserChatThread(requestId);
         else { window.isGeneralCall=true; startRemedyCall(requestId, window.currentQueueType==='video'); }
-      } else if(r.status==='ended'||r.status==='declined'||r.queueStatus==='user_declined'){hideUserChatIncoming();const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();}
+      } else if(r.status==='ended'||r.status==='declined'||r.queueStatus==='user_declined'){hideUserChatIncoming();const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();window.currentQueueRequestId=null;}
     });
-    document.getElementById('uwm-cancel').onclick=async()=>{if(!confirm('Cancel this request?'))return;await db.collection('requests').doc(requestId).update({queueStatus:'user_declined',status:'declined',cancelledBy:'user',cancelledAt:firebase.firestore.FieldValue.serverTimestamp()});const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();if(queueStatusUnsub){queueStatusUnsub();queueStatusUnsub=null;}};
+    document.getElementById('uwm-cancel').onclick=async()=>{if(!confirm('Cancel this request?'))return;await db.collection('requests').doc(requestId).update({queueStatus:'user_declined',status:'declined',cancelledBy:'user',cancelledAt:firebase.firestore.FieldValue.serverTimestamp()});const b=document.getElementById('user-waiting-mini-bar');if(b)b.remove();if(queueStatusUnsub){queueStatusUnsub();queueStatusUnsub=null;}window.currentQueueRequestId=null;};
   }
 
   async function sendRequestToAstrologer(type, extra, astrologerId) {
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if (!uid) {
       showToast('Connecting... please try again in a moment.');
+      return;
+    }
+    if (window.currentQueueRequestId || window.currentUserChatId || activeCallOrderId) {
+      showToast('You already have a chat/call request in progress. Cancel or finish it before starting another.');
       return;
     }
     const resolvedAstrologerId = astrologerId || TEST_ASTROLOGER_ID;
@@ -3182,6 +3191,7 @@ body{
       } else if (r.status === 'accepted') {
         stopQueueRingSound();
         if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+        window.currentQueueRequestId = null;
         if (type === 'chat') {
           openUserChatThread(requestId);
         } else {
@@ -3191,6 +3201,7 @@ body{
         stopQueueRingSound();
         if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
         if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
+        window.currentQueueRequestId = null;
         showToast('The astrologer is unable to take your request right now.');
         goScreen('home');
       }
@@ -3212,6 +3223,7 @@ body{
       if (!window.currentQueueRequestId) return;
       await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'declined_by_user', status: 'declined' });
       if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
+      window.currentQueueRequestId = null;
       goScreen('home');
     });
     if (qCancel) qCancel.addEventListener('click', async () => {
@@ -3220,6 +3232,7 @@ body{
       await db.collection('requests').doc(window.currentQueueRequestId).update({ queueStatus: 'declined_by_user', status: 'declined' });
       if (queueStatusUnsub) { queueStatusUnsub(); queueStatusUnsub = null; }
       if (queueEstimateUnsub) { queueEstimateUnsub(); queueEstimateUnsub = null; }
+      window.currentQueueRequestId = null;
       goScreen('home');
     });
   });
@@ -3364,6 +3377,14 @@ body{
   };
 
   function openChatKundliForm(astroId, type, price) {
+    // Only one chat/call request (waiting, or already active) at a time —
+    // otherwise tapping Chat on one astrologer while already waiting for
+    // another lets both get accepted independently. Block a second request
+    // until the first is cancelled, declined, or ends.
+    if (window.currentQueueRequestId || window.currentUserChatId || activeCallOrderId) {
+      showToast('You already have a chat/call request in progress. Cancel or finish it before starting another.');
+      return;
+    }
     window.pendingKundliAstroId = astroId || null;
     window.pendingKundliRequestType = type || 'chat';
     window.pendingKundliAstroPrice = price || 0;
