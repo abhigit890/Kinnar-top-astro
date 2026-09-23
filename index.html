@@ -1856,6 +1856,10 @@ body{
     if (user && !user.isAnonymous) {
       document.getElementById('screen-auth').classList.remove('active');
       document.getElementById('screen-home').classList.add('active');
+      // Bring the bottom nav back — it's hidden behind the login screen (and
+      // behind every sub-screen), so it must be explicitly shown again once
+      // someone is actually signed in and looking at the home screen.
+      document.getElementById('bottom-nav').classList.remove('nav-hidden');
       const name = user.displayName || localStorage.getItem('aangan_user_name') || 'Guest';
       localStorage.setItem('aangan_user_name', name);
       const photoImg = document.getElementById('profile-photo-img');
