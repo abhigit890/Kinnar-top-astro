@@ -1062,7 +1062,7 @@ body{
         <h1 class="greet-name" id="greet-name">Guest</h1>
       </div>
       <div class="header-actions">
-        <div class="wallet-badge">
+        <div class="wallet-badge" onclick="openTransactionHistory()" style="cursor:pointer;">
           <svg class="svgic" viewBox="0 0 24 24" width="14" height="14"><path d="M3 8a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v2h-4a3 3 0 0 0 0 6h4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z"/><circle cx="15" cy="12" r=".8" fill="currentColor" stroke="none"/></svg>
           <span class="amt" id="wallet-badge-amt">₹0</span>
         </div>
@@ -1382,7 +1382,7 @@ body{
       <p class="profile-sub">Member since 2026</p>
     </div>
     <div class="wallet-card gold-card">
-      <div>
+      <div onclick="openTransactionHistory()" style="cursor:pointer;">
         <div class="amt" id="wallet-card-amt">₹0.00</div>
         <div class="lbl">Wallet Balance</div>
       </div>
@@ -1976,6 +1976,9 @@ body{
 
   // ---- Wallet balance (live) ----
   window.walletBalance = 0;
+  let __walletBalanceKnown = false; // becomes true only after the first snapshot, so we never
+                                     // mistake the very first read for a "recharge"
+  let __walletPrevBalance = null;
   function watchWallet() {
     const uid = auth.currentUser ? auth.currentUser.uid : null;
     if (!uid) return;
@@ -1987,9 +1990,24 @@ body{
       const badge = document.getElementById('wallet-badge-amt');
       const card = document.getElementById('wallet-card-amt');
       const txBalance = document.getElementById('tx-balance-amt');
-      if (badge) badge.textContent = '₹' + balance;
-      if (card) card.textContent = '₹' + Number(balance).toFixed(2);
-      if (txBalance) txBalance.textContent = '₹' + Number(balance).toFixed(2);
+      // Show only the whole-rupee amount everywhere — no decimals, cleaner look.
+      const roundedTxt = '₹' + Math.round(balance);
+      if (badge) badge.textContent = roundedTxt;
+      if (card) card.textContent = roundedTxt;
+      if (txBalance) txBalance.textContent = roundedTxt;
+      // If the balance went UP since we last saw it (and it's not our very first
+      // read), that's a recharge credited from the Admin Panel — log it as a
+      // transaction here, as the user's own client, so it shows up in their history.
+      if (__walletBalanceKnown && __walletPrevBalance !== null && balance > __walletPrevBalance + 0.001) {
+        const credited = Math.round((balance - __walletPrevBalance) * 100) / 100;
+        db.collection('transactions').add({
+          userId: uid, type: 'credit', amount: credited,
+          description: 'Wallet Recharge',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(() => {});
+      }
+      __walletBalanceKnown = true;
+      __walletPrevBalance = balance;
       if (document.getElementById("screen-detail")?.classList.contains("active")) refreshDetailFollowButton();
     });
     const savedName = localStorage.getItem('aangan_user_name');
@@ -3627,6 +3645,23 @@ body{
           window.currentUserChatAstroName = null;
         }
         updateOngoingChatBar();
+        // Log what this chat actually cost as a debit transaction, once per
+        // session — so it shows up in the user's own Wallet transaction list.
+        if (!window.__chatTxLogged) window.__chatTxLogged = new Set();
+        if (!window.__chatTxLogged.has(chatId)) {
+          window.__chatTxLogged.add(chatId);
+          const spent = Math.round((parseFloat(c.astroBilledAmount || 0) || 0) * 100) / 100;
+          if (spent > 0) {
+            db.collection('astrologers').doc(c.astrologerId).get().then(aSnap => {
+              const aName = (aSnap.exists && aSnap.data().name) || 'Astrologer';
+              db.collection('transactions').add({
+                userId: auth.currentUser.uid, type: 'debit', amount: spent,
+                description: 'Chat with ' + aName,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+              }).catch(() => {});
+            });
+          }
+        }
         if (!window.__reviewedSessions) window.__reviewedSessions = new Set();
         if (!window.__reviewedSessions.has(chatId) && c.astrologerId) {
           window.__reviewedSessions.add(chatId);
@@ -5842,18 +5877,17 @@ function openDetail(id){
     <div class="detail-head">
       <div class="astro-avatar-frame"><div class="avatar" style="background:${avatarColor(a.id)}">${astroInitial(a)}</div></div>
       <div>
-        <h2>${a.name}</h2>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <h2 style="margin:0;">${a.name}</h2>
+          <button class="follow-btn banner-btn sm" id="follow-btn" onclick="toggleFollowAstro('${a.id}')" style="min-width:0; padding:5px 12px; font-size:11.5px;">
+            ${bannerInner((isFollowing ? "♥ Following" : "♡ Follow"))}
+          </button>
+        </div>
         <p class="detail-meta">${svg("globe",12)} ${a.languages||''}</p>
         <p class="detail-meta">${specialtyList(a).join(", ")}</p>
         <p class="detail-meta">₹${a.price||0}/min</p>
         ${visible ? `<p class="detail-meta" style="color:var(--gold-text); font-weight:700;">${svg("spark",12)} Online now</p>` : `<p class="detail-meta" style="color:var(--ink-faint);">Currently offline</p>`}
       </div>
-    </div>
-
-    <div class="engage-row" style="justify-content:flex-start;">
-      <button class="follow-btn banner-btn sm" id="follow-btn" onclick="toggleFollowAstro('${a.id}')" style="min-width:120px;">
-        ${bannerInner((isFollowing ? "♥ Following" : "♡ Follow"))}
-      </button>
     </div>
 
     <div class="section-divider"></div>
@@ -7444,12 +7478,30 @@ function selectGift(giftId){
   document.getElementById("gift-send-bar").classList.add("show");
 }
 
-function sendGift(astroId){
+async function sendGift(astroId){
   if(!selectedGiftId){ showToast("Please select a gift first"); return; }
   const a = liveAstrologers.find(x => x.id == astroId);
   const g = GIFTS.find(x => x.id === selectedGiftId);
   if(!a || !g) return;
-  showToast(`Sent ${g.name} to ${a.name.split(' ')[0]} — ₹${g.price}`);
+  const uid = auth.currentUser ? auth.currentUser.uid : null;
+  if (!uid) return;
+  if ((window.walletBalance || 0) < g.price) {
+    showToast(`Insufficient balance. Please add ₹${(g.price - (window.walletBalance || 0)).toFixed(0)} more to your wallet.`);
+    return;
+  }
+  try {
+    await db.collection('users').doc(uid).update({
+      balance: firebase.firestore.FieldValue.increment(-g.price)
+    });
+    await db.collection('transactions').add({
+      userId: uid, type: 'debit', amount: g.price,
+      description: `Gift: ${g.name} to ${a.name.split(' ')[0]}`,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast(`Sent ${g.name} to ${a.name.split(' ')[0]} — ₹${g.price}`);
+  } catch (e) {
+    showToast('Could not send gift: ' + e.message);
+  }
   document.querySelectorAll("#gift-grid .gift-item").forEach(el => el.classList.remove("selected"));
   document.getElementById("gift-send-bar").classList.remove("show");
   selectedGiftId = null;
@@ -7548,7 +7600,9 @@ function showToast(msg){
 function renderLiveList(){
   const el = document.getElementById("live-list");
   if(!el) return;
-  const liveAstros = liveAstrologers.filter(a => isAstroVisible(a) && !isAstroBanned(a));
+  // "Live" here means the astrologer has actually gone live on video from the Astrologer App —
+  // not merely available for private chat/call. Keep this section strictly to videoOnline.
+  const liveAstros = liveAstrologers.filter(a => a && a.videoOnline && !isAstroBanned(a));
   if(liveAstros.length === 0){
     el.innerHTML = `
       <div class="live-empty">
